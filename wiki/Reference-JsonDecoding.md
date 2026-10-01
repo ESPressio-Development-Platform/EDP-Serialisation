@@ -3,13 +3,13 @@
 **Source:** `src/serialisation/JsonDecoding.hpp`
 **Classification:** PRIVATE IMPLEMENTATION
 
-This header implements the allocation-free parser used by the public JSON + Known-Type Body + Numeric Field `Deserialise` operation. No declaration in this file is a cross-repository compatibility surface; consumers use `Operations.hpp` through the repository umbrella.
+This header implements the allocation-free parser shared by Numeric and LocalisedText JSON `Deserialise` operations for Known-Type Body and Typed Envelope roots. No declaration in this file is a cross-repository compatibility surface; consumers use `Operations.hpp` through the repository umbrella.
 
 ## Outcome and parser state
 
 ### `JsonDecodingStatus`
 
-Internal strongly typed outcome family. Values are: `Succeeded` (complete internal operation succeeded), `MalformedRepresentation` (invalid JSON grammar), `ResourceLimitExceeded` (compile-time parser limit exceeded), `UnknownField`, `DuplicateField`, `MissingRequiredField`, `TypeMismatch`, `NumericOutOfRange`, `NumericUnderflow`, `NonFiniteNumber`, `InvalidUtf8`, `InvalidBase64`, `CapacityExceeded`, `AdaptationFailed`, `UnsupportedEnvelopeVersion`, and `TypeIdentifierMismatch`. `Operations.hpp` maps these into the public `DeserialisationStatus` family.
+Internal strongly typed outcome family. Values are: `Succeeded` (complete internal operation succeeded), `MalformedRepresentation` (invalid JSON grammar), `ResourceLimitExceeded` (compile-time parser limit exceeded), `UnknownField`, `DuplicateField`, `MissingRequiredField`, `TypeMismatch`, `NumericOutOfRange`, `NumericUnderflow`, `NonFiniteNumber`, `InvalidUtf8`, `InvalidBase64`, `CapacityExceeded`, `AdaptationFailed`, `UnsupportedEnvelopeVersion`, `TypeIdentifierMismatch`, `InvalidLanguageMetadata`, `FieldNameNotFound`, `FieldNameAmbiguous`, and `LocalisationFailure`. `Operations.hpp` maps these into the public `DeserialisationStatus` family.
 
 ### `JsonInputCursor`
 
@@ -69,17 +69,18 @@ Unknown-object key replay can recursively validate earlier values. This is delib
 
 ## Recursive value/container helpers
 
-- `DecodeJsonValue<TPopulate,TStrictness,TParserLimits,TValue>` — central recursive dispatcher for bool, integer, floating, certified enum, Optional, fixed arrays, bounded String/Bytes/Vector, SchemaType and canonical strong adaptation. `TPopulate=false` performs validation only; `TPopulate=true` performs the replayed population pass.
-- `DecodeJsonFixedArray` — requires exactly the compile-time fixed extent.
+- `DecodeJsonValueWithFieldPolicy<TPopulate,TStrictness,TParserLimits,TFieldPolicy,TValue>` — central recursive dispatcher for bool, integer, floating, certified enum, Optional, fixed arrays, bounded String/Bytes/Vector, SchemaType and canonical strong adaptation. `TPopulate=false` performs validation only; `TPopulate=true` performs the replayed population pass.
+- `JsonNumericFieldDecodingPolicy` is the zero-state Numeric schema-key policy. `DecodeJsonValue<TPopulate,...>` is a Numeric wrapper which constructs that policy and delegates to the policy-aware dispatcher. `JsonLocalisedText.hpp` supplies a LocalisedText schema decoder overload selected by policy type.
+- `DecodeJsonFixedArray` — requires exactly the compile-time fixed extent and propagates the active Field policy to nested values.
 - `DecodeJsonVector` — accepts up to `BoundedVectorTraits<T>::Capacity`; population clears only after pass-one validation and activates inline slots with `EmplaceBack`.
 - `IsFieldSeen` / `MarkFieldSeen` — operate on the fixed 32-byte presence bitmap covering all 256 possible numeric FieldIdentifiers.
-- `DecodeJsonSchemaField` — runtime-ID to compile-time `FieldBinding` dispatch. Optional null/absence semantics and Field-local diagnostics are handled here.
+- `DecodeJsonSchemaField` — runtime-ID to compile-time `FieldBinding` dispatch while propagating the active Field policy into the Field value. Optional null/absence semantics and Field-local diagnostics are handled here.
 - `FinaliseJsonSchemaPresence` — rejects missing required Fields and resets absent Optional Fields only during population.
-- `DecodeJsonSchema` — validates JSON objects in arbitrary member order, detects duplicate numeric IDs, applies Exact/IgnoreUnknown strictness, and invokes required-presence validation.
+- `DecodeJsonSchemaWithFieldPolicy` for `JsonNumericFieldDecodingPolicy` validates Numeric JSON objects in arbitrary member order, detects duplicate numeric IDs, applies Exact/IgnoreUnknown strictness, and invokes required-presence validation. LocalisedText provides its own overload over the same Field dispatch/presence helpers.
 
 ## Transactional invariant
 
-The public operation runs `DecodeJsonValue<false>` over the complete input before running `DecodeJsonValue<true>`. The validation pass may read existing destination values only to seed a nothrow-copyable non-default strong semantic temporary; it must not mutate caller state. Population relies on the same immutable input and deterministic reverse adapters. Ordinary parser/range/capacity/adaptation failures are therefore discovered before destination mutation begins.
+The public operation runs the selected policy-aware decoder with `TPopulate=false` over the complete input before replaying it with `TPopulate=true`. The validation pass may read existing destination values only to seed a nothrow-copyable non-default strong semantic temporary; it must not mutate caller state. Population relies on the same immutable input and deterministic reverse adapters. Ordinary parser/range/capacity/adaptation failures are therefore discovered before destination mutation begins.
 
 ## Memory and concurrency
 

@@ -1,6 +1,6 @@
 # Profiles, Limits and Result Vocabulary
 
-The compile-time vocabulary is now consumed by JSON + Numeric Fields encoding and transactional decoding for both Known-Type Body and Typed Envelope roots. LocalisedText and CBOR execution remain pending.
+The compile-time vocabulary is now consumed by JSON encoding/transactional decoding for Numeric and LocalisedText Fields under both Known-Type Body and Typed Envelope roots. CBOR execution remains pending.
 
 ## Codec and profile selection
 
@@ -16,4 +16,4 @@ The compile-time vocabulary is now consumed by JSON + Numeric Fields encoding an
 
 V2 code-convention policy deliberately prohibits one library-wide result enum. `MeasurementStatus`, `SerialisationStatus`, and `DeserialisationStatus` therefore describe only their coherent operation families. Their result structs expose relevant byte counts and a compact shared `Diagnostic` containing byte offset and optional immediate Type/Field identity.
 
-`MeasurementResult` and `SerialisationResult` are returned by the implemented JSON Numeric encoding operations for Known-Type Body and Typed Envelope roots. `DeserialisationResult` is returned by the transactional decoder; success reports the complete consumed input length, while failure reports zero consumed bytes plus bounded diagnostic context. Typed Envelope failures use the existing `UnsupportedEnvelopeVersion` and `TypeIdentifierMismatch` statuses.
+`MeasurementResult` and `SerialisationResult` are returned by the implemented JSON Numeric and LocalisedText encoding operations for Known-Type Body and Typed Envelope roots. `DeserialisationResult` is returned by the transactional decoder; success reports the complete consumed input length, while failure reports zero consumed bytes plus bounded diagnostic context. Typed Envelope failures use the existing `UnsupportedEnvelopeVersion` and `TypeIdentifierMismatch` statuses.

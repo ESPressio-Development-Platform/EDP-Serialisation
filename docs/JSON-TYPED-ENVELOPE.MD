@@ -38,4 +38,4 @@ The envelope consumes ordinary JSON object nesting under the selected `ParserLim
 
 ## Deliberate non-features
 
-Typed Envelope does not dynamically construct an object from the embedded identifier. The caller always supplies the compile-time destination Type. It also does not auto-detect JSON/CBOR, carry library/package versions, or provide application schema migration. LocalisedText Fields and CBOR execution remain later V1 checkpoints.
+Typed Envelope does not dynamically construct an object from the embedded identifier. The caller always supplies the compile-time destination Type. It also does not auto-detect JSON/CBOR, carry library/package versions, or provide application schema migration. LocalisedText Fields are implemented inside the same Typed Envelope body dispatch; CBOR execution remains a later V1 checkpoint.

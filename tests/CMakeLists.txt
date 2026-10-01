@@ -12,6 +12,7 @@ foreach(required_dir
     EDP_MEMORY_SOURCE_DIR
     EDP_BOUNDED_TOPOLOGY_SOURCE_DIR
     EDP_PLATFORM_PORTABLE_SOURCE_DIR
+    EDP_LOCALISATION_SOURCE_DIR
 )
     if(NOT DEFINED ${required_dir})
         message(FATAL_ERROR "${required_dir} must point at the corresponding ESPressio checkout")
@@ -27,5 +28,7 @@ target_include_directories(EDP_Serialisation_HostTests PRIVATE
     ${EDP_MEMORY_SOURCE_DIR}/src
     ${EDP_BOUNDED_TOPOLOGY_SOURCE_DIR}/src
     ${EDP_PLATFORM_PORTABLE_SOURCE_DIR}/src
+    ${EDP_LOCALISATION_SOURCE_DIR}/src
+    ${EDP_LOCALISATION_SOURCE_DIR}/tests/generated
 )
 target_compile_options(EDP_Serialisation_HostTests PRIVATE -Wall -Wextra -Wpedantic -Werror)

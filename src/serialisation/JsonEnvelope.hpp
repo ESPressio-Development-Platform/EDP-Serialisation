@@ -130,8 +130,18 @@ namespace ESPressio::Serialisation::Detail {
     }
 
     /// Emits one canonical JSON Typed Envelope around an already supported body value.
-    template<class TSink, class TValue>
-    JsonEncodingStatus EncodeJsonTypedEnvelope(
+    ///
+    /// @tparam TFieldPolicy Schema Field-key policy propagated into the envelope body.
+    /// @tparam TSink JSON output sink Type.
+    /// @tparam TValue Identified serialisable root Type.
+    /// @param fieldPolicy Schema Field-key policy propagated into the body.
+    /// @param sink Destination sink.
+    /// @param value Source root value.
+    /// @param diagnostic Diagnostic payload populated on failure.
+    /// @return Complete internal encoding outcome.
+    template<class TFieldPolicy, class TSink, class TValue>
+    JsonEncodingStatus EncodeJsonTypedEnvelopeWithFieldPolicy(
+        TFieldPolicy& fieldPolicy,
         TSink& sink,
         const TValue& value,
         Diagnostic& diagnostic
@@ -146,9 +156,37 @@ namespace ESPressio::Serialisation::Detail {
         if (status != JsonEncodingStatus::Succeeded) { return status; }
         status = WriteJsonBytes(sink, Middle, sizeof(Middle) - 1U, diagnostic);
         if (status != JsonEncodingStatus::Succeeded) { return status; }
-        status = EncodeJsonValue(sink, value, diagnostic);
+        status = EncodeJsonValueWithFieldPolicy(
+            fieldPolicy,
+            sink,
+            value,
+            diagnostic
+        );
         if (status != JsonEncodingStatus::Succeeded) { return status; }
         return WriteJsonByte(sink, static_cast<std::uint8_t>('}'), diagnostic);
+    }
+
+    /// Emits one canonical JSON Typed Envelope using numeric schema Field keys.
+    ///
+    /// @tparam TSink JSON output sink Type.
+    /// @tparam TValue Identified serialisable root Type.
+    /// @param sink Destination sink.
+    /// @param value Source root value.
+    /// @param diagnostic Diagnostic payload populated on failure.
+    /// @return Complete internal encoding outcome.
+    template<class TSink, class TValue>
+    JsonEncodingStatus EncodeJsonTypedEnvelope(
+        TSink& sink,
+        const TValue& value,
+        Diagnostic& diagnostic
+    ) noexcept {
+        JsonNumericFieldEncodingPolicy fieldPolicy{};
+        return EncodeJsonTypedEnvelopeWithFieldPolicy(
+            fieldPolicy,
+            sink,
+            value,
+            diagnostic
+        );
     }
 
     /// Parses and verifies the Typed Envelope version member.
@@ -272,14 +310,28 @@ namespace ESPressio::Serialisation::Detail {
         return JsonDecodingStatus::Succeeded;
     }
 
-    /// Parses one complete JSON Typed Envelope and delegates its body to the existing value decoder.
+    /// Parses one complete JSON Typed Envelope and delegates its body through the selected Field policy.
+    ///
+    /// @tparam TPopulate false for validation-only traversal; true for destination population.
+    /// @tparam TStrictness Unknown-Field handling policy propagated to the body.
+    /// @tparam TParserLimits Compile-time parser resource policy.
+    /// @tparam TFieldPolicy Schema Field-key policy propagated into the body.
+    /// @tparam TValue Identified serialisable destination Type.
+    /// @param fieldPolicy Schema Field-key policy propagated into the body.
+    /// @param cursor Immutable caller-input cursor.
+    /// @param destination Destination root or validation seed.
+    /// @param skipState Unknown-value skip accounting state.
+    /// @param diagnostic Diagnostic payload populated on failure.
+    /// @return Complete internal decoding outcome.
     template<
         bool TPopulate,
         StrictnessPolicy TStrictness,
         class TParserLimits,
+        class TFieldPolicy,
         class TValue
     >
-    JsonDecodingStatus DecodeJsonTypedEnvelope(
+    JsonDecodingStatus DecodeJsonTypedEnvelopeWithFieldPolicy(
+        TFieldPolicy& fieldPolicy,
         JsonInputCursor& cursor,
         TValue* destination,
         JsonSkipState& skipState,
@@ -319,7 +371,8 @@ namespace ESPressio::Serialisation::Detail {
             SkipJsonWhitespace(cursor);
             status = member == JsonEnvelopeRootMember::Edp
                 ? DecodeJsonEnvelopeMetadata<TParserLimits, TValue>(cursor, 1U, diagnostic)
-                : DecodeJsonValue<TPopulate, TStrictness, TParserLimits>(
+                : DecodeJsonValueWithFieldPolicy<TPopulate, TStrictness, TParserLimits>(
+                    fieldPolicy,
                     cursor,
                     destination,
                     1U,
@@ -333,6 +386,43 @@ namespace ESPressio::Serialisation::Detail {
         if (status != JsonDecodingStatus::Succeeded) { return status; }
         if (!seenEdp || !seenValue) { return JsonDecodingStatus::MalformedRepresentation; }
         return JsonDecodingStatus::Succeeded;
+    }
+
+    /// Parses one complete JSON Typed Envelope using numeric schema Field keys.
+    ///
+    /// @tparam TPopulate false for validation-only traversal; true for destination population.
+    /// @tparam TStrictness Unknown-Field handling policy propagated to the body.
+    /// @tparam TParserLimits Compile-time parser resource policy.
+    /// @tparam TValue Identified serialisable destination Type.
+    /// @param cursor Immutable caller-input cursor.
+    /// @param destination Destination root or validation seed.
+    /// @param skipState Unknown-value skip accounting state.
+    /// @param diagnostic Diagnostic payload populated on failure.
+    /// @return Complete internal decoding outcome.
+    template<
+        bool TPopulate,
+        StrictnessPolicy TStrictness,
+        class TParserLimits,
+        class TValue
+    >
+    JsonDecodingStatus DecodeJsonTypedEnvelope(
+        JsonInputCursor& cursor,
+        TValue* destination,
+        JsonSkipState& skipState,
+        Diagnostic& diagnostic
+    ) noexcept {
+        JsonNumericFieldDecodingPolicy fieldPolicy{};
+        return DecodeJsonTypedEnvelopeWithFieldPolicy<
+            TPopulate,
+            TStrictness,
+            TParserLimits
+        >(
+            fieldPolicy,
+            cursor,
+            destination,
+            skipState,
+            diagnostic
+        );
     }
 
 } // ESPressio::Serialisation::Detail

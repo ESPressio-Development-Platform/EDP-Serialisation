@@ -28,13 +28,16 @@ JSON decode adds no new direct dependency edge. `JsonBufferSink` validates the s
 
 Platform-Portable itself depends on EDP-Platform and EDP-Memory. EDP-Memory depends on System, Platform, and BoundedTopology. These remain transitive unless Serialisation source begins consuming their contracts directly.
 
+## Production dependency: EDP-Localisation
+
+**Kind:** mandatory direct API dependency.
+
+LocalisedText production source consumes `LanguageIdentifierView`, `LocalisationContext`, `WritableTextView`, validation status/facts, forward `ResolveFieldName`, context-specific reverse `ResolveFieldIdentifier`, and complete `ResolveFieldIdentifierAcrossLanguages`. EDP-Localisation remains authoritative for canonical RFC5646 syntax, pack/provider validation, fallback traversal, supported-language enumeration and ambiguity proof. Serialisation retains only caller-supplied Resolver pointers/views for the duration of one operation and never owns a pack.
+
 ## Demo/build dependencies
 
-PlatformIO demo projects consume the local `EDP-Serialisation` library plus explicit System/BoundedTypes Git dependencies; PlatformIO resolves Serialisation's direct Memory/Platform-Portable metadata and the remaining transitive graph. `library.properties` declares all four direct Serialisation dependencies in the `0.1.x` range.
+Every PlatformIO demo project consumes the local `EDP-Serialisation` library plus explicit `EDP-System`, `EDP-BoundedTypes`, and `EDP-Localisation` dependencies because the public Serialisation umbrella includes Localisation-backed profile support. PlatformIO resolves Serialisation's direct Memory/Platform-Portable metadata and the remaining transitive graph. `library.properties` declares all five direct Serialisation dependencies in the `0.1.x` range.
 
-## Deferred direct dependency
-
-`EDP-Localisation` becomes direct when the LocalisedText Field profile actually calls forward/reverse presentation resolution. It must not be added merely because later architecture anticipates it.
 
 ## Dependency direction invariant
 
@@ -45,6 +48,7 @@ EDP-System ------------+
 EDP-BoundedTypes ------+
 EDP-Memory ------------+--> EDP-Serialisation
 EDP-Platform-Portable -+
+EDP-Localisation ------+
 ```
 
 Foundational owners must not depend back on EDP-Serialisation. Transport, Persistence, Security, Threading, Command, Event, State and application layers are consumers above this repository rather than dependencies below it.

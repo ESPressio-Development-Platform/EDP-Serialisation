@@ -54,7 +54,15 @@ namespace ESPressio::Serialisation::Detail {
         /// Typed-envelope metadata uses a version not understood by V1.
         UnsupportedEnvelopeVersion = 14U,
         /// Typed-envelope semantic identity does not equal the compile-time target Type.
-        TypeIdentifierMismatch = 15U
+        TypeIdentifierMismatch = 15U,
+        /// Embedded or caller language metadata is malformed or inconsistent.
+        InvalidLanguageMetadata = 16U,
+        /// A textual Field name is conclusively absent from the applicable Localisation domain.
+        FieldNameNotFound = 17U,
+        /// A textual Field name resolves to different FieldIdentifiers across the applicable domain.
+        FieldNameAmbiguous = 18U,
+        /// Localisation provider/pack/format/dataset resolution could not complete conclusively.
+        LocalisationFailure = 19U
     };
 
     /// Lightweight immutable cursor over caller-owned JSON input.
@@ -1753,7 +1761,31 @@ namespace ESPressio::Serialisation::Detail {
         return JsonDecodingStatus::Succeeded;
     }
 
-    /// Forward declaration for recursive schema/container value decoding.
+    /// Zero-state policy selecting canonical numeric schema Field keys during decoding.
+    struct JsonNumericFieldDecodingPolicy final {
+    };
+
+    /// Forward declaration for policy-aware recursive schema/container value decoding.
+    ///
+    /// The Field policy is propagated through containers/adapters so every nested schema uses the selected
+    /// Numeric or LocalisedText identity representation without duplicating scalar/container parsing.
+    template<
+        bool TPopulate,
+        StrictnessPolicy TStrictness,
+        class TParserLimits,
+        class TFieldPolicy,
+        class TValue
+    >
+    JsonDecodingStatus DecodeJsonValueWithFieldPolicy(
+        TFieldPolicy& fieldPolicy,
+        JsonInputCursor& cursor,
+        TValue* destination,
+        std::size_t depth,
+        JsonSkipState& skipState,
+        Diagnostic& diagnostic
+    ) noexcept;
+
+    /// Forward declaration for recursive schema/container value decoding with numeric Field keys.
     ///
     /// @tparam TPopulate false for validation-only traversal; true for destination population.
     /// @tparam TStrictness Compile-time unknown-Field policy.
@@ -1763,9 +1795,11 @@ namespace ESPressio::Serialisation::Detail {
         bool TPopulate,
         StrictnessPolicy TStrictness,
         class TParserLimits,
+        class TFieldPolicy,
         class TValue
     >
-    JsonDecodingStatus DecodeJsonValue(
+    JsonDecodingStatus DecodeJsonValueWithFieldPolicy(
+        TFieldPolicy& fieldPolicy,
         JsonInputCursor& cursor,
         TValue* destination,
         std::size_t depth,
@@ -1778,16 +1812,25 @@ namespace ESPressio::Serialisation::Detail {
     /// @tparam TPopulate false for validation-only traversal; true for destination population.
     /// @tparam TStrictness Compile-time unknown-Field policy propagated to nested values.
     /// @tparam TParserLimits Compile-time parser resource policy.
-    /// @tparam TValue Fixed-array target Type.
+    /// @tparam TFieldPolicy Schema Field-key policy propagated to nested elements.
     /// @tparam TAccessor Callable returning the destination element pointer for one valid index.
+    /// @param fieldPolicy Schema Field-key policy propagated to nested elements.
+    /// @param cursor Immutable caller-input cursor.
+    /// @param count Exact required array element count.
+    /// @param accessor Destination-element accessor.
+    /// @param depth Current syntactic nesting depth.
+    /// @param skipState Unknown-value skip accounting state.
+    /// @param diagnostic Diagnostic payload populated on failure.
+    /// @return Complete internal decoding outcome.
     template<
         bool TPopulate,
         StrictnessPolicy TStrictness,
         class TParserLimits,
-        class TValue,
+        class TFieldPolicy,
         class TAccessor
     >
     JsonDecodingStatus DecodeJsonFixedArray(
+        TFieldPolicy& fieldPolicy,
         JsonInputCursor& cursor,
         std::size_t count,
         TAccessor&& accessor,
@@ -1816,7 +1859,8 @@ namespace ESPressio::Serialisation::Detail {
                 SkipJsonWhitespace(cursor);
             }
 
-            status = DecodeJsonValue<TPopulate, TStrictness, TParserLimits>(
+            status = DecodeJsonValueWithFieldPolicy<TPopulate, TStrictness, TParserLimits>(
+                fieldPolicy,
                 cursor,
                 accessor(index),
                 depth + 1U,
@@ -1840,14 +1884,24 @@ namespace ESPressio::Serialisation::Detail {
     /// @tparam TPopulate false for validation-only traversal; true for destination population.
     /// @tparam TStrictness Compile-time unknown-Field policy propagated to elements.
     /// @tparam TParserLimits Compile-time parser resource policy.
+    /// @tparam TFieldPolicy Schema Field-key policy propagated to nested elements.
     /// @tparam TValue Concrete bounded Vector target Type.
+    /// @param fieldPolicy Schema Field-key policy propagated to nested elements.
+    /// @param cursor Immutable caller-input cursor.
+    /// @param destination Destination Vector or validation seed.
+    /// @param depth Current syntactic nesting depth.
+    /// @param skipState Unknown-value skip accounting state.
+    /// @param diagnostic Diagnostic payload populated on failure.
+    /// @return Complete internal decoding outcome.
     template<
         bool TPopulate,
         StrictnessPolicy TStrictness,
         class TParserLimits,
+        class TFieldPolicy,
         class TValue
     >
     JsonDecodingStatus DecodeJsonVector(
+        TFieldPolicy& fieldPolicy,
         JsonInputCursor& cursor,
         TValue* destination,
         std::size_t depth,
@@ -1886,7 +1940,8 @@ namespace ESPressio::Serialisation::Detail {
                 element = &(*destination)[destination->Size() - 1U];
             }
 
-            status = DecodeJsonValue<TPopulate, TStrictness, TParserLimits>(
+            status = DecodeJsonValueWithFieldPolicy<TPopulate, TStrictness, TParserLimits>(
+                fieldPolicy,
                 cursor,
                 element,
                 depth + 1U,
@@ -1933,15 +1988,18 @@ namespace ESPressio::Serialisation::Detail {
     /// @tparam TPopulate false for validation-only traversal; true for destination population.
     /// @tparam TStrictness Compile-time unknown-Field policy.
     /// @tparam TParserLimits Compile-time parser resource policy.
+    /// @tparam TFieldPolicy Schema Field-key policy propagated to the selected Field value.
     /// @tparam TValue Schema owner Type.
     template<
         std::uint16_t TIdentifier,
         bool TPopulate,
         StrictnessPolicy TStrictness,
         class TParserLimits,
+        class TFieldPolicy,
         class TValue
     >
     JsonDecodingStatus DecodeJsonSchemaField(
+        TFieldPolicy& fieldPolicy,
         JsonInputCursor& cursor,
         System::FieldIdentifier identifier,
         TValue* destination,
@@ -1961,6 +2019,7 @@ namespace ESPressio::Serialisation::Detail {
                     TStrictness,
                     TParserLimits
                 >(
+                    fieldPolicy,
                     cursor,
                     identifier,
                     destination,
@@ -2009,7 +2068,8 @@ namespace ESPressio::Serialisation::Detail {
                         auto& optional = destination->*Field::Member;
                         if (optional.has_value()) { element = &optional.value(); }
                     }
-                    const auto fieldStatus = DecodeJsonValue<TPopulate, TStrictness, TParserLimits>(
+                    const auto fieldStatus = DecodeJsonValueWithFieldPolicy<TPopulate, TStrictness, TParserLimits>(
+                        fieldPolicy,
                         cursor,
                         element,
                         depth,
@@ -2025,7 +2085,8 @@ namespace ESPressio::Serialisation::Detail {
                     FieldValue* field = destination == nullptr
                         ? nullptr
                         : &(destination->*Field::Member);
-                    const auto fieldStatus = DecodeJsonValue<TPopulate, TStrictness, TParserLimits>(
+                    const auto fieldStatus = DecodeJsonValueWithFieldPolicy<TPopulate, TStrictness, TParserLimits>(
+                        fieldPolicy,
                         cursor,
                         field,
                         depth,
@@ -2071,7 +2132,9 @@ namespace ESPressio::Serialisation::Detail {
         return status;
     }
 
-    /// Decodes one numeric-Field schema object in arbitrary input Field order.
+    /// Decodes one Numeric-profile schema object in arbitrary input Field order.
+    ///
+    /// `fieldPolicy` is the zero-state Numeric policy and is propagated into nested Field values.
     ///
     /// @tparam TPopulate false for validation-only traversal; true for destination population.
     /// @tparam TStrictness Compile-time unknown-Field policy.
@@ -2083,7 +2146,8 @@ namespace ESPressio::Serialisation::Detail {
         class TParserLimits,
         class TValue
     >
-    JsonDecodingStatus DecodeJsonSchema(
+    JsonDecodingStatus DecodeJsonSchemaWithFieldPolicy(
+        JsonNumericFieldDecodingPolicy& fieldPolicy,
         JsonInputCursor& cursor,
         TValue* destination,
         std::size_t depth,
@@ -2131,6 +2195,7 @@ namespace ESPressio::Serialisation::Detail {
                 TStrictness,
                 TParserLimits
             >(
+                fieldPolicy,
                 cursor,
                 identifier,
                 destination,
@@ -2169,7 +2234,10 @@ namespace ESPressio::Serialisation::Detail {
         }
     }
 
-    /// Decodes one value from the currently implemented JSON Numeric Known-Type profile.
+    /// Decodes one value through the selected schema Field-key policy.
+    ///
+    /// Scalar/container representation remains identical across Field profiles; the policy only affects nested
+    /// schema-object key/prefix handling.
     ///
     /// @tparam TPopulate false for validation-only traversal; true for destination population.
     /// @tparam TStrictness Compile-time unknown-Field policy.
@@ -2179,9 +2247,11 @@ namespace ESPressio::Serialisation::Detail {
         bool TPopulate,
         StrictnessPolicy TStrictness,
         class TParserLimits,
+        class TFieldPolicy,
         class TValue
     >
-    JsonDecodingStatus DecodeJsonValue(
+    JsonDecodingStatus DecodeJsonValueWithFieldPolicy(
+        TFieldPolicy& fieldPolicy,
         JsonInputCursor& cursor,
         TValue* destination,
         std::size_t depth,
@@ -2279,7 +2349,8 @@ namespace ESPressio::Serialisation::Detail {
             } else if (destination != nullptr && destination->has_value()) {
                 element = &destination->value();
             }
-            return DecodeJsonValue<TPopulate, TStrictness, TParserLimits>(
+            return DecodeJsonValueWithFieldPolicy<TPopulate, TStrictness, TParserLimits>(
+                fieldPolicy,
                 cursor,
                 element,
                 depth,
@@ -2287,7 +2358,8 @@ namespace ESPressio::Serialisation::Detail {
                 diagnostic
             );
         } else if constexpr (StandardArrayTraits<Value>::IsValue) {
-            return DecodeJsonFixedArray<TPopulate, TStrictness, TParserLimits, Value>(
+            return DecodeJsonFixedArray<TPopulate, TStrictness, TParserLimits>(
+                fieldPolicy,
                 cursor,
                 StandardArrayTraits<Value>::Count,
                 [&](std::size_t index) noexcept -> typename StandardArrayTraits<Value>::Element* {
@@ -2299,7 +2371,8 @@ namespace ESPressio::Serialisation::Detail {
             );
         } else if constexpr (std::is_array_v<Value>) {
             using Element = std::remove_extent_t<Value>;
-            return DecodeJsonFixedArray<TPopulate, TStrictness, TParserLimits, Value>(
+            return DecodeJsonFixedArray<TPopulate, TStrictness, TParserLimits>(
+                fieldPolicy,
                 cursor,
                 std::extent_v<Value>,
                 [&](std::size_t index) noexcept -> Element* {
@@ -2323,6 +2396,7 @@ namespace ESPressio::Serialisation::Detail {
             return DecodeJsonBoundedBytes<TPopulate>(cursor, destination, diagnostic);
         } else if constexpr (BoundedVectorTraits<Value>::IsValue) {
             return DecodeJsonVector<TPopulate, TStrictness, TParserLimits>(
+                fieldPolicy,
                 cursor,
                 destination,
                 depth,
@@ -2330,7 +2404,8 @@ namespace ESPressio::Serialisation::Detail {
                 diagnostic
             );
         } else if constexpr (PotentialSchemaType<Value>) {
-            return DecodeJsonSchema<TPopulate, TStrictness, TParserLimits>(
+            return DecodeJsonSchemaWithFieldPolicy<TPopulate, TStrictness, TParserLimits>(
+                fieldPolicy,
                 cursor,
                 destination,
                 depth,
@@ -2340,7 +2415,8 @@ namespace ESPressio::Serialisation::Detail {
         } else if constexpr (HasCanonicalRepresentation<Value>) {
             using Representation = std::remove_cv_t<typename CanonicalRepresentation<Value>::Type>;
             Representation representation{};
-            auto status = DecodeJsonValue<true, TStrictness, TParserLimits>(
+            auto status = DecodeJsonValueWithFieldPolicy<true, TStrictness, TParserLimits>(
+                fieldPolicy,
                 cursor,
                 &representation,
                 depth,
@@ -2374,6 +2450,46 @@ namespace ESPressio::Serialisation::Detail {
             static_assert(IsSerialisableType<Value>);
             return JsonDecodingStatus::TypeMismatch;
         }
+    }
+
+    /// Decodes one value using canonical numeric schema Field keys.
+    ///
+    /// @tparam TPopulate false for validation-only traversal; true for destination population.
+    /// @tparam TStrictness Compile-time unknown-Field policy.
+    /// @tparam TParserLimits Compile-time parser resource policy.
+    /// @tparam TValue Serialisable target Type.
+    /// @param cursor Immutable caller-input cursor.
+    /// @param destination Destination value or validation seed.
+    /// @param depth Current syntactic nesting depth.
+    /// @param skipState Unknown-value skip accounting state.
+    /// @param diagnostic Diagnostic payload populated on failure.
+    /// @return Complete internal decoding outcome.
+    template<
+        bool TPopulate,
+        StrictnessPolicy TStrictness,
+        class TParserLimits,
+        class TValue
+    >
+    JsonDecodingStatus DecodeJsonValue(
+        JsonInputCursor& cursor,
+        TValue* destination,
+        std::size_t depth,
+        JsonSkipState& skipState,
+        Diagnostic& diagnostic
+    ) noexcept {
+        JsonNumericFieldDecodingPolicy fieldPolicy{};
+        return DecodeJsonValueWithFieldPolicy<
+            TPopulate,
+            TStrictness,
+            TParserLimits
+        >(
+            fieldPolicy,
+            cursor,
+            destination,
+            depth,
+            skipState,
+            diagnostic
+        );
     }
 
 } // ESPressio::Serialisation::Detail

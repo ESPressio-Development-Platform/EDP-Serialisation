@@ -2,7 +2,7 @@
 
 EDP-Serialisation owns deterministic representation rules and the recursive compile-time qualification needed to decide which C++ values can participate in ESPressio Serialisation. The current `0.1.0` implementation provides Type qualification, strong-Type canonical adaptation, profile/resource vocabulary, System identifier adapters, and JSON Numeric execution with exact `Measure`, all-or-nothing `Serialise`, and transactional `Deserialise` for both Known-Type Body and explicit Typed Envelope roots.
 
-It deliberately does **not** own semantic Type/Field identity (`EDP-System`), bounded container storage or pairwise conversion (`EDP-BoundedTypes`), Transport, Persistence, Security, Threading, Localisation, or application object lifetime. LocalisedText Fields and CBOR remain pending; Typed Envelope is an implemented explicit root wrapper and does not provide runtime Type construction or codec autodetection.
+It deliberately does **not** own semantic Type/Field identity (`EDP-System`), bounded container storage or pairwise conversion (`EDP-BoundedTypes`), Localisation language-pack/fallback semantics (`EDP-Localisation`), Transport, Persistence, Security, Threading, or application object lifetime. Numeric and LocalisedText JSON plus Typed Envelope are implemented; CBOR remains pending. Typed Envelope does not provide runtime Type construction or codec autodetection.
 
 The consumer entry point is `src/ESPressio_Serialisation.hpp`.
 

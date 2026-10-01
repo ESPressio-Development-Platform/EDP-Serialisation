@@ -4,13 +4,13 @@
 **Public classification:** PUBLIC OPERATION API
 **Detail classification:** PRIVATE IMPLEMENTATION
 
-This header exposes JSON Numeric `Measure`, `Serialise`, and transactional `Deserialise` for Known-Type Body and Typed Envelope roots, and maps private codec outcomes into the public operation-specific result families.
+This header exposes JSON Numeric and LocalisedText `Measure`, `Serialise`, and transactional `Deserialise` for Known-Type Body and Typed Envelope roots, and maps private codec outcomes into the public operation-specific result families.
 
 ## `Measure<TCodec, TRootProfile, TFieldProfile, TValue>(value)`
 
 PUBLIC API. `TCodec` selects the compile-time codec; `TRootProfile` defaults to `KnownTypeBody`; `TFieldProfile` defaults to `Numeric`; `TValue` must satisfy `SerialisableType`.
 
-The implemented combinations are `Json + Numeric` with either `KnownTypeBody` or `TypedEnvelope`. Typed Envelope additionally requires `System::IdentifiedType<T>` and measures canonical root metadata plus the same body traversal. LocalisedText/CBOR selections remain compile-time rejected. The function validates all represented values/adaptations and returns exact `RequiredBytes` only on success.
+The implemented combinations are `Json + Numeric` with either `KnownTypeBody` or `TypedEnvelope`. Typed Envelope additionally requires `System::IdentifiedType<T>` and measures canonical root metadata plus the same body traversal. The parameter-only overload remains Numeric; dedicated overloads implement LocalisedText. CBOR selections remain compile-time rejected. The function validates all represented values/adaptations and returns exact `RequiredBytes` only on success.
 
 ## `Serialise<TCodec, TRootProfile, TFieldProfile, TValue>(value, output, capacity)`
 
@@ -40,7 +40,7 @@ PRIVATE IMPLEMENTATION constexpr mapper used when Serialise preflight fails. It 
 
 ## `Detail::ValidateImplementedEncodingProfile<TCodec, TRootProfile, TFieldProfile>()`
 
-PRIVATE IMPLEMENTATION consteval profile gate. `TCodec`, `TRootProfile`, and `TFieldProfile` are compile-time selection parameters. It currently requires exact `Json`, `Numeric`, and either `KnownTypeBody` or `TypedEnvelope`; pending LocalisedText/CBOR combinations fail with focused `static_assert` diagnostics rather than runtime error/fallback state.
+PRIVATE IMPLEMENTATION consteval profile gate. `TCodec`, `TRootProfile`, and `TFieldProfile` are compile-time selection parameters. It currently requires exact `Json`, `Numeric`, and either `KnownTypeBody` or `TypedEnvelope`; pending CBOR combinations fail with focused `static_assert` diagnostics rather than runtime error/fallback state.
 
 ## Validation relationships
 
@@ -49,7 +49,7 @@ Host coverage checks exact measurement/written-size agreement, scalar/container/
 
 ## `Deserialise<TCodec,TRootProfile,TFieldProfile,TStrictness,TParserLimits,TValue>(input,length,destination)`
 
-PUBLIC API. `TCodec` is currently required to be `Json`; root/Field profiles currently require `KnownTypeBody` / `Numeric`; `TStrictness` defaults to `Exact`; `TParserLimits` defaults to `DefaultParserLimits`; `TValue` must satisfy `SerialisableType`.
+PUBLIC API. `TCodec` is currently required to be `Json`; the parameter-only overload defaults to `KnownTypeBody` / `Numeric`; `TStrictness` defaults to `Exact`; `TParserLimits` defaults to `DefaultParserLimits`; `TValue` must satisfy `SerialisableType`.
 
 The operation rejects null input, validates the complete immutable input with `DecodeJsonValue<false>`, allows only trailing JSON whitespace, then replays the same bytes through `DecodeJsonValue<true>` to populate. Failures report `BytesConsumed == 0`; success reports the complete supplied length. Pass one may read existing destination state solely to seed a copy-constructible non-default strong semantic validation temporary; it does not mutate caller state.
 
@@ -59,8 +59,35 @@ PRIVATE IMPLEMENTATION constexpr mapper preserving decoder failure distinctions 
 
 ## `Detail::ValidateImplementedDecodingProfile<TCodec,TRootProfile,TFieldProfile>()`
 
-PRIVATE IMPLEMENTATION consteval profile gate. It currently permits only exact `Json`, `KnownTypeBody`, and `Numeric`; unsupported profile execution remains a compile-time error rather than runtime fallback.
+PRIVATE IMPLEMENTATION consteval profile gate. Numeric and LocalisedText each have focused compile-time gates; unsupported codec/profile execution remains a compile-time error rather than runtime fallback.
 
 ## Typed Envelope dispatch
 
 For `RootProfile::TypedEnvelope`, all three public operations statically require `System::IdentifiedType<TValue>`. Measure/Serialise delegate to `EncodeJsonTypedEnvelope`; Deserialise delegates each replay pass to `DecodeJsonTypedEnvelope`. Known-Type Body continues to delegate directly to the body encoder/decoder.
+
+
+## LocalisedText overloads
+
+PUBLIC API overloads select `FieldProfile::LocalisedText` and require an EDP-Localisation Resolver plus caller-owned scratch.
+
+### Encoding `Measure` / `Serialise`
+
+Both accept `resolver`, a complete `LocalisationContext`, `fieldNameScratch`, and `comparisonScratch`. The scratch ranges must be valid and non-overlapping. The context and Resolver fallback chain are validated before traversal. `Measure` resolves/collision-checks each emitted Field and includes exact RFC5646/name bytes. `Serialise` calls that same measurement first, preserving the no-partial-write contract.
+
+### Decoding with explicit caller context
+
+`Deserialise(..., resolver, context, fieldNameScratch)` supplies both caller requested and terminal languages. Embedded RFC5646 metadata, when present, has priority but must exactly equal `context.RequestedLanguage`. Missing metadata uses the caller context.
+
+### Decoding without caller requested language
+
+`Deserialise(..., resolver, terminalLanguage, fieldNameScratch)` permits payload-only RFC5646 metadata. If metadata is absent, textual keys use `ResolveFieldIdentifierAcrossLanguages`, preserving Localisation `NotFound` versus `Ambiguous` semantics.
+
+Both overload families delegate transactional passes to `Detail::DeserialiseJsonWithFieldPolicy`; the Resolver/pack source and caller scratch must remain stable for the complete operation.
+
+## `Detail::DeserialiseJsonWithFieldPolicy`
+
+PRIVATE IMPLEMENTATION helper shared by Numeric-policy composition and LocalisedText overloads. It performs validate-only traversal, trailing-data check, replayed population, and Typed Envelope dispatch while preserving one Field policy instance across each pass.
+
+## Localised status mappings
+
+`Detail::ToMeasurementStatus`, `ToSerialisationStatus`, and `ToDeserialisationStatus` preserve `InvalidLanguageMetadata`, `FieldNameCollision`, `FieldNameNotFound`, `FieldNameAmbiguous`, and `LocalisationFailure` as operation-appropriate public outcomes rather than collapsing them into generic malformed/unknown statuses.

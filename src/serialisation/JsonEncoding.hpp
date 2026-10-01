@@ -40,7 +40,13 @@ namespace ESPressio::Serialisation::Detail {
         /// A bounded String contains invalid V1 UTF-8 text.
         InvalidUtf8 = 3U,
         /// A strong semantic Type could not convert to its canonical representation.
-        AdaptationFailed = 4U
+        AdaptationFailed = 4U,
+        /// Caller-supplied language metadata is malformed or inconsistent.
+        InvalidLanguageMetadata = 5U,
+        /// Two emitted schema Fields resolve to the same textual key or collide with reserved metadata.
+        FieldNameCollision = 6U,
+        /// Localisation could not conclusively resolve one required Field presentation.
+        LocalisationFailure = 7U
     };
 
     /// Internal UTF-8 validation outcomes for one bounded text payload.
@@ -910,7 +916,73 @@ namespace ESPressio::Serialisation::Detail {
         );
     }
 
-    /// Forward declaration for recursive JSON value encoding.
+    /// Zero-state policy selecting canonical numeric schema Field keys.
+    struct JsonNumericFieldEncodingPolicy final {
+    };
+
+    /// Emits no schema prefix for the Numeric Field profile.
+    ///
+    /// @tparam TSink JSON output sink Type.
+    /// @tparam TValue Schema owner Type.
+    /// @param policy Zero-state numeric Field policy.
+    /// @param sink Destination sink; unused because Numeric has no prefix metadata.
+    /// @param value Source schema object; unused by Numeric prefix emission.
+    /// @param firstField Existing comma-state flag; unchanged.
+    /// @param diagnostic Diagnostic payload; unchanged on success.
+    /// @return Always Succeeded.
+    template<class TSink, class TValue>
+    JsonEncodingStatus EncodeJsonSchemaPrefix(
+        JsonNumericFieldEncodingPolicy& policy,
+        TSink& sink,
+        const TValue& value,
+        bool& firstField,
+        Diagnostic& diagnostic
+    ) noexcept {
+        static_cast<void>(policy);
+        static_cast<void>(sink);
+        static_cast<void>(value);
+        static_cast<void>(firstField);
+        static_cast<void>(diagnostic);
+        return JsonEncodingStatus::Succeeded;
+    }
+
+    /// Emits one canonical numeric Field key for the Numeric Field profile.
+    ///
+    /// @tparam TSink JSON output sink Type.
+    /// @tparam TValue Schema owner Type.
+    /// @param policy Zero-state numeric Field policy.
+    /// @param sink Destination sink.
+    /// @param value Source schema object; unused by Numeric key representation.
+    /// @param identifier Stable FieldIdentifier to encode.
+    /// @param diagnostic Diagnostic payload populated on failure.
+    /// @return Complete internal encoding outcome.
+    template<class TSink, class TValue>
+    JsonEncodingStatus EncodeJsonSchemaFieldKey(
+        JsonNumericFieldEncodingPolicy& policy,
+        TSink& sink,
+        const TValue& value,
+        System::FieldIdentifier identifier,
+        Diagnostic& diagnostic
+    ) noexcept {
+        static_cast<void>(policy);
+        static_cast<void>(value);
+        return EncodeJsonFieldKey(sink, identifier, diagnostic);
+    }
+
+    /// Forward declaration for policy-aware recursive JSON value encoding.
+    ///
+    /// @tparam TFieldPolicy Schema Field-key policy propagated to every nested schema value.
+    /// @tparam TSink JSON output sink Type.
+    /// @tparam TValue Serialisable source Type.
+    template<class TFieldPolicy, class TSink, class TValue>
+    JsonEncodingStatus EncodeJsonValueWithFieldPolicy(
+        TFieldPolicy& fieldPolicy,
+        TSink& sink,
+        const TValue& value,
+        Diagnostic& diagnostic
+    ) noexcept;
+
+    /// Forward declaration for recursive JSON value encoding using numeric Field keys.
     ///
     /// @tparam TSink JSON sink Type.
     /// @tparam TValue Serialisable value Type.
@@ -927,15 +999,18 @@ namespace ESPressio::Serialisation::Detail {
 
     /// Emits one JSON array from a finite indexed source.
     ///
+    /// @tparam TFieldPolicy Schema Field-key policy propagated to nested values.
     /// @tparam TSink JSON sink Type.
     /// @tparam TAccessor Callable returning the source value at one valid index.
+    /// @param fieldPolicy Schema Field-key policy propagated to nested values.
     /// @param sink Destination sink.
     /// @param count Exact number of source values.
     /// @param accessor Indexed source accessor.
     /// @param diagnostic Diagnostic payload populated on failure.
     /// @return Complete internal encoding outcome.
-    template<class TSink, class TAccessor>
+    template<class TFieldPolicy, class TSink, class TAccessor>
     JsonEncodingStatus EncodeJsonArray(
+        TFieldPolicy& fieldPolicy,
         TSink& sink,
         std::size_t count,
         TAccessor&& accessor,
@@ -958,7 +1033,8 @@ namespace ESPressio::Serialisation::Detail {
                 if (status != JsonEncodingStatus::Succeeded) { return status; }
             }
 
-            status = EncodeJsonValue(
+            status = EncodeJsonValueWithFieldPolicy(
+                fieldPolicy,
                 sink,
                 accessor(index),
                 diagnostic
@@ -976,15 +1052,18 @@ namespace ESPressio::Serialisation::Detail {
     /// Emits schema Fields in ascending numeric FieldIdentifier order without runtime sorting state.
     ///
     /// @tparam TIdentifier Current numeric FieldIdentifier candidate in the compile-time traversal.
+    /// @tparam TFieldPolicy Schema Field-key policy selecting prefix/key representation.
     /// @tparam TSink JSON sink Type.
     /// @tparam TValue Schema owner Type.
+    /// @param fieldPolicy Schema Field-key policy selecting prefix/key representation.
     /// @param sink Destination sink.
     /// @param value Source schema object.
     /// @param firstField Tracks whether a comma is required before the next emitted Field.
     /// @param diagnostic Diagnostic payload populated on failure.
     /// @return Complete internal encoding outcome.
-    template<std::uint16_t TIdentifier, class TSink, class TValue>
+    template<std::uint16_t TIdentifier, class TFieldPolicy, class TSink, class TValue>
     JsonEncodingStatus EncodeJsonSchemaFields(
+        TFieldPolicy& fieldPolicy,
         TSink& sink,
         const TValue& value,
         bool& firstField,
@@ -1023,8 +1102,10 @@ namespace ESPressio::Serialisation::Detail {
                     }
 
                     if (status == JsonEncodingStatus::Succeeded) {
-                        status = EncodeJsonFieldKey(
+                        status = EncodeJsonSchemaFieldKey(
+                            fieldPolicy,
                             sink,
+                            value,
                             Field::Identifier,
                             diagnostic
                         );
@@ -1032,13 +1113,15 @@ namespace ESPressio::Serialisation::Detail {
 
                     if (status == JsonEncodingStatus::Succeeded) {
                         if constexpr (OptionalValueTraits<FieldValue>::IsValue) {
-                            status = EncodeJsonValue(
+                            status = EncodeJsonValueWithFieldPolicy(
+                                fieldPolicy,
                                 sink,
                                 fieldValue.value(),
                                 diagnostic
                             );
                         } else {
-                            status = EncodeJsonValue(
+                            status = EncodeJsonValueWithFieldPolicy(
+                                fieldPolicy,
                                 sink,
                                 fieldValue,
                                 diagnostic
@@ -1061,6 +1144,7 @@ namespace ESPressio::Serialisation::Detail {
             }
 
             return EncodeJsonSchemaFields<TIdentifier + 1U>(
+                fieldPolicy,
                 sink,
                 value,
                 firstField,
@@ -1071,14 +1155,17 @@ namespace ESPressio::Serialisation::Detail {
 
     /// Emits one schema object in canonical ascending numeric FieldIdentifier order.
     ///
+    /// @tparam TFieldPolicy Schema Field-key policy selecting prefix/key representation.
     /// @tparam TSink JSON sink Type.
     /// @tparam TValue Schema owner Type.
+    /// @param fieldPolicy Schema Field-key policy selecting prefix/key representation.
     /// @param sink Destination sink.
     /// @param value Source schema object.
     /// @param diagnostic Diagnostic payload populated on failure.
     /// @return Complete internal encoding outcome.
-    template<class TSink, class TValue>
+    template<class TFieldPolicy, class TSink, class TValue>
     JsonEncodingStatus EncodeJsonSchema(
+        TFieldPolicy& fieldPolicy,
         TSink& sink,
         const TValue& value,
         Diagnostic& diagnostic
@@ -1091,7 +1178,17 @@ namespace ESPressio::Serialisation::Detail {
         if (status != JsonEncodingStatus::Succeeded) { return status; }
 
         bool firstField = true;
+        status = EncodeJsonSchemaPrefix(
+            fieldPolicy,
+            sink,
+            value,
+            firstField,
+            diagnostic
+        );
+        if (status != JsonEncodingStatus::Succeeded) { return status; }
+
         status = EncodeJsonSchemaFields<0U>(
+            fieldPolicy,
             sink,
             value,
             firstField,
@@ -1108,14 +1205,17 @@ namespace ESPressio::Serialisation::Detail {
 
     /// Emits one value from the complete currently-qualified V1 Type universe as canonical JSON.
     ///
+    /// @tparam TFieldPolicy Schema Field-key policy propagated to nested schema values.
     /// @tparam TSink JSON sink Type.
     /// @tparam TValue Serialisable source Type.
+    /// @param fieldPolicy Schema Field-key policy propagated to nested schema values.
     /// @param sink Destination sink.
     /// @param value Source value.
     /// @param diagnostic Diagnostic payload populated on failure.
     /// @return Complete internal encoding outcome.
-    template<class TSink, class TValue>
-    JsonEncodingStatus EncodeJsonValue(
+    template<class TFieldPolicy, class TSink, class TValue>
+    JsonEncodingStatus EncodeJsonValueWithFieldPolicy(
+        TFieldPolicy& fieldPolicy,
         TSink& sink,
         const TValue& value,
         Diagnostic& diagnostic
@@ -1172,13 +1272,15 @@ namespace ESPressio::Serialisation::Detail {
                 );
             }
 
-            return EncodeJsonValue(
+            return EncodeJsonValueWithFieldPolicy(
+                fieldPolicy,
                 sink,
                 value.value(),
                 diagnostic
             );
         } else if constexpr (StandardArrayTraits<Value>::IsValue) {
             return EncodeJsonArray(
+                fieldPolicy,
                 sink,
                 StandardArrayTraits<Value>::Count,
                 [&](std::size_t index) -> const auto& {
@@ -1188,6 +1290,7 @@ namespace ESPressio::Serialisation::Detail {
             );
         } else if constexpr (std::is_array_v<Value>) {
             return EncodeJsonArray(
+                fieldPolicy,
                 sink,
                 std::extent_v<Value>,
                 [&](std::size_t index) -> const auto& {
@@ -1211,6 +1314,7 @@ namespace ESPressio::Serialisation::Detail {
             );
         } else if constexpr (BoundedVectorTraits<Value>::IsValue) {
             return EncodeJsonArray(
+                fieldPolicy,
                 sink,
                 value.Size(),
                 [&](std::size_t index) -> const auto& {
@@ -1224,6 +1328,7 @@ namespace ESPressio::Serialisation::Detail {
                 "Serialisable schema values must satisfy System::SchemaType"
             );
             return EncodeJsonSchema(
+                fieldPolicy,
                 sink,
                 value,
                 diagnostic
@@ -1244,7 +1349,8 @@ namespace ESPressio::Serialisation::Detail {
                 return JsonEncodingStatus::AdaptationFailed;
             }
 
-            return EncodeJsonValue(
+            return EncodeJsonValueWithFieldPolicy(
+                fieldPolicy,
                 sink,
                 representation,
                 diagnostic
@@ -1256,6 +1362,29 @@ namespace ESPressio::Serialisation::Detail {
             );
             return JsonEncodingStatus::ResourceLimitExceeded;
         }
+    }
+
+    /// Emits one value using canonical numeric schema Field keys.
+    ///
+    /// @tparam TSink JSON output sink Type.
+    /// @tparam TValue Serialisable source Type.
+    /// @param sink Destination sink.
+    /// @param value Source value.
+    /// @param diagnostic Diagnostic payload populated on failure.
+    /// @return Complete internal encoding outcome.
+    template<class TSink, class TValue>
+    JsonEncodingStatus EncodeJsonValue(
+        TSink& sink,
+        const TValue& value,
+        Diagnostic& diagnostic
+    ) noexcept {
+        JsonNumericFieldEncodingPolicy fieldPolicy{};
+        return EncodeJsonValueWithFieldPolicy(
+            fieldPolicy,
+            sink,
+            value,
+            diagnostic
+        );
     }
 
 } // ESPressio::Serialisation::Detail

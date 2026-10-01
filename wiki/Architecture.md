@@ -15,7 +15,7 @@ EDP-BoundedTypes
   bounded value storage / capacity / pairwise TypeConversionAdapter
 ```
 
-The current implementation provides the compile-time contract plus allocation-free JSON encoding and transactional replayable-input JSON decoding for Numeric Fields under both Known-Type Body and explicit Typed Envelope roots. LocalisedText Fields and CBOR remain pending.
+The current implementation provides the compile-time contract plus allocation-free JSON encoding and transactional replayable-input JSON decoding for Numeric and LocalisedText Fields under both Known-Type Body and explicit Typed Envelope roots. CBOR remains pending.
 
 ## Schema reuse
 
@@ -39,8 +39,13 @@ The two-pass encoding contract assumes the source and canonical forward adapters
 
 ## Dependency evolution
 
-Direct dependencies are introduced only when source consumes them. JSON caller-buffer emission now consumes EDP-Memory ByteOperations with the EDP-Platform-Portable stateless provider as its default, so both are direct alongside System and BoundedTypes. Localisation remains deferred until LocalisedText execution.
+Direct dependencies are introduced only when source consumes them. JSON caller-buffer emission now consumes EDP-Memory ByteOperations with the EDP-Platform-Portable stateless provider as its default, so both are direct alongside System and BoundedTypes. LocalisedText execution now consumes EDP-Localisation directly; Serialisation delegates language validation/fallback and forward/reverse presentation identity to that repository and retains no language-pack representation.
 
 ## Typed Envelope root layer
 
 `RootProfile::TypedEnvelope` is deliberately a thin root-only layer around the existing body codec. Canonical JSON emits `$edp` metadata (`v`, canonical lowercase root `TypeIdentifier`) before `value`. Decode validates the complete envelope in pass one before any body population occurs in pass two. The embedded identity is checked against the compile-time target and is never used to look up or dynamically construct a Type. Nested schema values therefore remain ordinary body values with no repeated identity metadata.
+
+
+## LocalisedText Field layer
+
+The shared JSON scalar/container/schema codec is Field-policy aware. Numeric Fields use a zero-state policy. LocalisedText binds a caller-owned Resolver, language context and bounded text scratch. Schema encoding emits reserved RFC5646 metadata first and resolves each Field key through EDP-Localisation; schema decoding discovers metadata by replay, applies embedded > caller > all-language priority, then reverse-resolves names to canonical FieldIdentifiers before dispatching through the same value decoder. This avoids a parallel codec, Localisation registry, DOM or retained dictionary.

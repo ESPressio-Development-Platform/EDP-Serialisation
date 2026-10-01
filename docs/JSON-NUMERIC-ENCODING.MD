@@ -2,7 +2,7 @@
 
 This document defines the currently implemented V1 encoding execution surface: `Json` codec, `RootProfile::KnownTypeBody`, and `FieldProfile::Numeric`.
 
-`Measure` and `Serialise` are implemented for this Known-Type profile. JSON transactional deserialisation and Typed Envelope execution are now also implemented in their dedicated documents. LocalisedText Fields and CBOR remain later implementation slices.
+`Measure` and `Serialise` are implemented for this Known-Type profile. JSON transactional deserialisation and Typed Envelope execution are now also implemented in their dedicated documents. LocalisedText Fields are now implemented through the shared value encoder; CBOR remains a later implementation slice.
 
 ## Public operations
 

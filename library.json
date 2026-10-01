@@ -46,6 +46,11 @@
       "name": "EDP-Platform-Portable",
       "version": "https://github.com/ESPressio-Development-Platform/EDP-Platform-Portable.git#main",
       "platforms": "*"
+    },
+    {
+      "name": "EDP-Localisation",
+      "version": "https://github.com/ESPressio-Development-Platform/EDP-Localisation.git#main",
+      "platforms": "*"
     }
   ]
 }

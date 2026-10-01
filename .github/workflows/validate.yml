@@ -50,6 +50,10 @@ jobs:
         with:
           repository: ESPressio-Development-Platform/EDP-Platform-Portable
           path: deps/EDP-Platform-Portable
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/EDP-Localisation
+          path: deps/EDP-Localisation
       - name: Host contracts
         env:
           CXX: ${{ matrix.compiler }}
@@ -60,6 +64,7 @@ jobs:
           EDP_MEMORY_SOURCE_DIR: ${{ github.workspace }}/deps/EDP-Memory
           EDP_BOUNDED_TOPOLOGY_SOURCE_DIR: ${{ github.workspace }}/deps/EDP-BoundedTopology
           EDP_PLATFORM_PORTABLE_SOURCE_DIR: ${{ github.workspace }}/deps/EDP-Platform-Portable
+          EDP_LOCALISATION_SOURCE_DIR: ${{ github.workspace }}/deps/EDP-Localisation
         run: ./tests/run_host_tests.sh
 
   cmake:
@@ -90,6 +95,10 @@ jobs:
         with:
           repository: ESPressio-Development-Platform/EDP-Platform-Portable
           path: deps/EDP-Platform-Portable
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/EDP-Localisation
+          path: deps/EDP-Localisation
       - name: Configure and execute CMake host target
         run: >-
           cmake -S tests -B tests/.cmake-build
@@ -99,6 +108,7 @@ jobs:
           -DEDP_MEMORY_SOURCE_DIR=${{ github.workspace }}/deps/EDP-Memory
           -DEDP_BOUNDED_TOPOLOGY_SOURCE_DIR=${{ github.workspace }}/deps/EDP-BoundedTopology
           -DEDP_PLATFORM_PORTABLE_SOURCE_DIR=${{ github.workspace }}/deps/EDP-Platform-Portable
+          -DEDP_LOCALISATION_SOURCE_DIR=${{ github.workspace }}/deps/EDP-Localisation
           && cmake --build tests/.cmake-build --parallel 2
           && tests/.cmake-build/EDP_Serialisation_HostTests
 
@@ -118,3 +128,5 @@ jobs:
       - run: pio run -d demos/json-numeric-decoding/PlatformIO_ESP-IDF
       - run: pio run -d demos/json-typed-envelope/PlatformIO_Arduino
       - run: pio run -d demos/json-typed-envelope/PlatformIO_ESP-IDF
+      - run: pio run -d demos/json-localised-text/PlatformIO_Arduino
+      - run: pio run -d demos/json-localised-text/PlatformIO_ESP-IDF

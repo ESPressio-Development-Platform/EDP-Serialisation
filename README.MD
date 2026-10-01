@@ -2,7 +2,7 @@
 
 Deterministic, allocation-free, schema-driven serialisation for the ESPressio Development Platform.
 
-The library is currently in its pre-1.0 implementation tranche at version `0.1.0`. The compile-time foundation is implemented together with JSON + Numeric Fields `Measure`, all-or-nothing `Serialise`, and transactional two-pass `Deserialise` for both Known-Type Body and explicit Typed Envelope roots. LocalisedText Fields and CBOR remain later implementation slices.
+The library is currently in its pre-1.0 implementation tranche at version `0.1.0`. The compile-time foundation is implemented together with JSON `Measure`, all-or-nothing `Serialise`, and transactional two-pass `Deserialise` for Numeric and LocalisedText Fields under both Known-Type Body and explicit Typed Envelope roots. CBOR remains a later implementation slice.
 
 ## Core Guarantees
 
@@ -22,6 +22,7 @@ The library is currently in its pre-1.0 implementation tranche at version `0.1.0
 - [JSON Numeric Known-Type Encoding](./docs/JSON-NUMERIC-ENCODING.MD) — defines the implemented `Measure`/`Serialise` profile, canonical wire rules, no-partial-output guarantee, and resource behavior.
 - [JSON Numeric Known-Type Decoding](./docs/JSON-NUMERIC-DECODING.MD) — defines transactional `Deserialise`, strictness, numeric/text/Base64 validation, bounded sequence population, and parser limits.
 - [JSON Typed Envelope](./docs/JSON-TYPED-ENVELOPE.MD) — defines the explicit root envelope, canonical TypeIdentifier text, version checking, and transactional envelope decode.
+- [JSON LocalisedText Fields](./docs/JSON-LOCALISED-TEXT.MD) — defines RFC5646 metadata, forward/reverse Localisation resolution, collision rules, caller scratch, language priority, and transactional decode.
 - [Dependency Graph](./DEPENDENCY_GRAPH.MD) — records direct ownership boundaries and current transitive dependency topology.
 
 ## Implemented API
@@ -48,7 +49,8 @@ Public foundation components:
 - `Measure<Json>(value)` for exact canonical JSON size/validation;
 - `Serialise<Json>(value, output, capacity)` for JSON + Known-Type Body + Numeric Fields;
 - `Deserialise<Json>(input, length, destination)` for transactional JSON + Known-Type Body + Numeric Fields decoding;
-- `Measure` / `Serialise` / `Deserialise` with `RootProfile::TypedEnvelope` for identified JSON roots carrying envelope version and canonical root `TypeIdentifier`.
+- `Measure` / `Serialise` / `Deserialise` with `RootProfile::TypedEnvelope` for identified JSON roots carrying envelope version and canonical root `TypeIdentifier`;
+- LocalisedText overloads for both root profiles using caller-owned `EDP-Localisation` Resolver/context/scratch state, reserved `RFC5646` metadata, exact collision detection and transactional reverse Field resolution.
 
 ## Fixed-width integer note
 
@@ -56,11 +58,11 @@ The V1 contract is defined in terms of the fixed-width C++ Types `std::int8_t` t
 
 ## Dependencies
 
-Direct dependencies are `EDP-System`, `EDP-BoundedTypes`, `EDP-Memory`, and `EDP-Platform-Portable`. The latter two own the ByteOperations contract and default stateless portable provider used by caller-buffer writes. See [DEPENDENCY_GRAPH.MD](./DEPENDENCY_GRAPH.MD).
+Direct dependencies are `EDP-System`, `EDP-BoundedTypes`, `EDP-Memory`, `EDP-Platform-Portable`, and `EDP-Localisation`. The latter two own the ByteOperations contract and default stateless portable provider used by caller-buffer writes. See [DEPENDENCY_GRAPH.MD](./DEPENDENCY_GRAPH.MD).
 
 ## Demos
 
-`demos/type-qualification` demonstrates schema recursion, bounded values, enum certification, profile vocabulary, and compile-time qualification. `demos/json-numeric-encoding` demonstrates canonical Numeric Field ordering, Optional omission, floating encoding, Base64 Bytes, exact measurement and caller-buffer serialisation. `demos/json-numeric-decoding` demonstrates schema-ID resolution, Optional omission semantics, floating decode, strict Base64 and transactional population. `demos/json-typed-envelope` demonstrates canonical envelope emission plus transactional root Type/version validation. Every demo is maintained in Arduino IDE, PlatformIO Arduino, and PlatformIO ESP-IDF forms.
+`demos/type-qualification` demonstrates schema recursion, bounded values, enum certification, profile vocabulary, and compile-time qualification. `demos/json-numeric-encoding` demonstrates canonical Numeric Field ordering, Optional omission, floating encoding, Base64 Bytes, exact measurement and caller-buffer serialisation. `demos/json-numeric-decoding` demonstrates schema-ID resolution, Optional omission semantics, floating decode, strict Base64 and transactional population. `demos/json-typed-envelope` demonstrates canonical envelope emission plus transactional root Type/version validation. `demos/json-localised-text` demonstrates caller-owned Localisation/scratch, RFC5646 metadata and textual Field round-trip. Every demo is maintained in Arduino IDE, PlatformIO Arduino, and PlatformIO ESP-IDF forms.
 
 ## Validation
 

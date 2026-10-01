@@ -9,6 +9,8 @@
 
 #include <ESPressio_Serialisation.hpp>
 
+#include "TestPacks.hpp"
+
 namespace TestSupport {
 
     /// Demonstrates explicit fixed-width enum certification.
@@ -150,6 +152,316 @@ namespace TestSupport {
         std::uint32_t Value = 0U;
 
     };
+
+    /// Schema matching the real EDP-Localisation generated Type/Field test pack.
+    struct LocalisedReading final {
+
+        // Schema payload.
+
+        /// Temperature value presented through localised Field name `Temperature`.
+        std::uint32_t Temperature = 0U;
+
+        // Schema metadata.
+
+        /// Stable Type identity present in the Localisation generated pack fixture.
+        inline static constexpr ESPressio::System::TypeIdentifier Identifier{
+            ESPressio::System::TypeIdentifier::Storage{
+                0x01U, 0x23U, 0x45U, 0x67U, 0x89U, 0xABU, 0xCDU, 0xEFU
+            }
+        };
+
+        /// Canonical FieldSet matching generated FieldIdentifier zero.
+        using Fields = ESPressio::System::FieldSet<
+            ESPressio::System::FieldBinding<&LocalisedReading::Temperature, 0U>
+        >;
+
+    };
+
+    /// Two-Field schema used to exercise textual presentation collisions.
+    struct LocalisedPair final {
+
+        // Schema payload.
+
+        /// First test value.
+        std::uint32_t First = 1U;
+
+        /// Second test value.
+        std::uint32_t Second = 2U;
+
+        // Schema metadata.
+
+        /// Stable test-owned Type identity.
+        inline static constexpr ESPressio::System::TypeIdentifier Identifier{
+            ESPressio::System::TypeIdentifier::Storage{
+                0x00U, 0x00U, 0x01U, 0x00U, 0x00U, 0x00U, 0x00U, 0x06U
+            }
+        };
+
+        /// Canonical two-Field schema.
+        using Fields = ESPressio::System::FieldSet<
+            ESPressio::System::FieldBinding<&LocalisedPair::First, 0U>,
+            ESPressio::System::FieldBinding<&LocalisedPair::Second, 1U>
+        >;
+
+    };
+
+    /// Nested LocalisedText leaf used to prove recursive Field-policy propagation.
+    struct LocalisedLeaf final {
+
+        /// Leaf numeric payload.
+        std::uint16_t Value = 0U;
+
+        /// Stable leaf Type identity.
+        inline static constexpr ESPressio::System::TypeIdentifier Identifier{
+            ESPressio::System::TypeIdentifier::Storage{
+                0x00U, 0x00U, 0x01U, 0x00U, 0x00U, 0x00U, 0x00U, 0x08U
+            }
+        };
+
+        /// Single Field binding using identifier zero.
+        using Fields = ESPressio::System::FieldSet<
+            ESPressio::System::FieldBinding<&LocalisedLeaf::Value, 0U>
+        >;
+
+    };
+
+    /// Root schema containing another LocalisedText schema object.
+    struct LocalisedNestedRoot final {
+
+        /// Nested schema payload.
+        LocalisedLeaf Child{};
+
+        /// Stable root Type identity.
+        inline static constexpr ESPressio::System::TypeIdentifier Identifier{
+            ESPressio::System::TypeIdentifier::Storage{
+                0x00U, 0x00U, 0x01U, 0x00U, 0x00U, 0x00U, 0x00U, 0x09U
+            }
+        };
+
+        /// Single nested Field binding using identifier zero.
+        using Fields = ESPressio::System::FieldSet<
+            ESPressio::System::FieldBinding<&LocalisedNestedRoot::Child, 0U>
+        >;
+
+    };
+
+    /// Empty schema used to prove unknown textual Field skipping without required-Field noise.
+    struct LocalisedEmpty final {
+
+        /// Stable test-owned Type identity.
+        inline static constexpr ESPressio::System::TypeIdentifier Identifier{
+            ESPressio::System::TypeIdentifier::Storage{
+                0x00U, 0x00U, 0x01U, 0x00U, 0x00U, 0x00U, 0x00U, 0x07U
+            }
+        };
+
+        /// Explicit zero-Field schema.
+        using Fields = ESPressio::System::FieldSet<>;
+
+    };
+
+    /// Behaviour selected for the focused LocalisedText resolver test double.
+    enum class TestLocalisationMode : std::uint8_t {
+        /// Distinct forward/reverse names map normally.
+        Normal = 0U,
+        /// Every forward Field maps to the same name.
+        Collision = 1U,
+        /// Forward Field names collide with reserved RFC5646 metadata.
+        Reserved = 2U,
+        /// Reverse lookup reports conclusively absent names.
+        NotFound = 3U,
+        /// Cross-language reverse lookup reports conflicting identities.
+        Ambiguous = 4U,
+        /// Resolver validation reports an unavailable provider/pack dependency.
+        Unavailable = 5U
+    };
+
+    /// Minimal Field presentation identity matching the Resolver surface consumed by Serialisation.
+    struct TestFieldPresentationIdentifier final {
+
+        /// Owning schema Type identity.
+        ESPressio::System::TypeIdentifier Type;
+
+        /// Type-local Field identity.
+        ESPressio::System::FieldIdentifier Field;
+
+    };
+
+    /// Focused forward-lookup result used by the LocalisedText resolver test double.
+    struct TestLocalisationResolveResult final {
+
+        /// Lookup status.
+        ESPressio::Localisation::LocalisationStatus Status =
+            ESPressio::Localisation::LocalisationStatus::Success;
+
+        /// Successful-resolution facts including scratch-capacity reporting.
+        ESPressio::Localisation::LocalisationFacts Facts{};
+
+        /// Bytes copied to caller scratch.
+        std::size_t BytesWritten = 0U;
+
+        /// Complete UTF-8 representation size.
+        std::size_t RequiredBytes = 0U;
+
+    };
+
+    /// Small resolver test double used only for impossible-valid-pack failure states.
+    class TestLocalisationResolver final {
+    public:
+
+        /// Field presentation identity accepted by ResolveFieldName.
+        using FieldPresentationIdentifier = TestFieldPresentationIdentifier;
+
+    private:
+
+        /// Selected deterministic test behaviour.
+        TestLocalisationMode _mode = TestLocalisationMode::Normal;
+
+        /// Compares caller text to one exact ASCII literal.
+        [[nodiscard]] static bool IsTextEqual(
+            ESPressio::Localisation::TextView text,
+            const char* expected,
+            std::size_t expectedSize
+        ) noexcept {
+            if (text.Size != expectedSize) { return false; }
+            for (std::size_t index = 0U; index < text.Size; ++index) {
+                if (text.Data[index] != expected[index]) { return false; }
+            }
+            return true;
+        }
+
+    public:
+
+        /// Creates one deterministic resolver test double.
+        explicit TestLocalisationResolver(
+            TestLocalisationMode mode
+        ) noexcept :
+            _mode(mode) {
+        }
+
+        /// Accepts every syntactically valid context supplied by the operation tests.
+        [[nodiscard]] ESPressio::Localisation::ValidationResult ValidateContext(
+            const ESPressio::Localisation::LocalisationContext& context
+        ) const noexcept {
+            static_cast<void>(context);
+            return {
+                _mode == TestLocalisationMode::Unavailable
+                    ? ESPressio::Localisation::ValidationStatus::ProviderUnavailable
+                    : ESPressio::Localisation::ValidationStatus::Success
+            };
+        }
+
+        /// Resolves one deterministic test Field presentation into caller-owned scratch.
+        [[nodiscard]] TestLocalisationResolveResult ResolveFieldName(
+            const ESPressio::Localisation::LocalisationContext& context,
+            const FieldPresentationIdentifier& field,
+            ESPressio::Localisation::WritableTextView destination,
+            ESPressio::Localisation::TextOutputMode outputMode
+        ) const noexcept {
+            static_cast<void>(context);
+            static_cast<void>(outputMode);
+            if (_mode == TestLocalisationMode::Unavailable) {
+                TestLocalisationResolveResult failure{};
+                failure.Status = ESPressio::Localisation::LocalisationStatus::ProviderUnavailable;
+                return failure;
+            }
+            const char* name = field.Field.Value() == 0U ? "Alpha" : "Beta";
+            std::size_t nameSize = field.Field.Value() == 0U ? 5U : 4U;
+            if (_mode == TestLocalisationMode::Collision) {
+                name = "Same";
+                nameSize = 4U;
+            } else if (_mode == TestLocalisationMode::Reserved) {
+                name = "RFC5646";
+                nameSize = 7U;
+            }
+
+            const auto copySize = destination.Capacity < nameSize
+                ? destination.Capacity
+                : nameSize;
+            for (std::size_t index = 0U; index < copySize; ++index) {
+                destination.Data[index] = name[index];
+            }
+            TestLocalisationResolveResult result{};
+            result.BytesWritten = copySize;
+            result.RequiredBytes = nameSize;
+            if (copySize != nameSize) {
+                result.Facts.Set(
+                    ESPressio::Localisation::LocalisationFact::BufferTooSmall
+                );
+            }
+            return result;
+        }
+
+        /// Resolves one deterministic textual name in one explicit language context.
+        [[nodiscard]] ESPressio::Localisation::FieldIdentifierResolutionResult ResolveFieldIdentifier(
+            const ESPressio::Localisation::LocalisationContext& context,
+            ESPressio::System::TypeIdentifier type,
+            ESPressio::Localisation::TextView fieldName
+        ) const noexcept {
+            static_cast<void>(context);
+            static_cast<void>(type);
+            if (_mode == TestLocalisationMode::NotFound) {
+                return {
+                    ESPressio::Localisation::FieldIdentifierResolutionStatus::NotFound,
+                    std::nullopt
+                };
+            }
+            if (_mode == TestLocalisationMode::Unavailable) {
+                return {
+                    ESPressio::Localisation::FieldIdentifierResolutionStatus::ProviderUnavailable,
+                    std::nullopt
+                };
+            }
+            if (IsTextEqual(fieldName, "Alpha", 5U)) {
+                return {
+                    ESPressio::Localisation::FieldIdentifierResolutionStatus::Success,
+                    ESPressio::System::FieldIdentifier{0U}
+                };
+            }
+            if (IsTextEqual(fieldName, "Beta", 4U)) {
+                return {
+                    ESPressio::Localisation::FieldIdentifierResolutionStatus::Success,
+                    ESPressio::System::FieldIdentifier{1U}
+                };
+            }
+            return {
+                ESPressio::Localisation::FieldIdentifierResolutionStatus::NotFound,
+                std::nullopt
+            };
+        }
+
+        /// Resolves one textual name across all test languages.
+        [[nodiscard]] ESPressio::Localisation::FieldIdentifierResolutionResult ResolveFieldIdentifierAcrossLanguages(
+            ESPressio::System::TypeIdentifier type,
+            ESPressio::Localisation::TextView fieldName
+        ) const noexcept {
+            if (_mode == TestLocalisationMode::Ambiguous) {
+                return {
+                    ESPressio::Localisation::FieldIdentifierResolutionStatus::Ambiguous,
+                    std::nullopt
+                };
+            }
+            const auto terminal = ESPressio::Localisation::LanguageIdentifierView::Validate("en-GB");
+            return ResolveFieldIdentifier(
+                {terminal.Value, terminal.Value},
+                type,
+                fieldName
+            );
+        }
+
+    };
+
+    /// Real in-binary Localisation source used by the integration tests.
+    using RealLocalisationSource = ESPressio::Localisation::InBinaryPackSource<
+        ESPressio::Platform::Portable::Memory::ByteOperationsProvider
+    >;
+
+    /// Real Resolver bound to the generated Localisation integration-test contract.
+    using RealLocalisationResolver = ESPressio::Localisation::Resolver<
+        RealLocalisationSource,
+        ESPressio::Platform::Portable::Memory::ByteOperationsProvider,
+        TestGenerated::Contract
+    >;
 
     /// Schema proving canonical numeric Field ordering at both identifier boundaries.
     struct BoundaryFields final {
@@ -1222,6 +1534,412 @@ int main() {
     );
     assert(envelopeDeserialisation.Status == DeserialisationStatus::MalformedRepresentation);
     assert(envelopeDestination.Child.Value == 77U);
+
+    // JSON LocalisedText integration against the real EDP-Localisation pack reader.
+
+    ESPressio::Platform::Portable::Memory::ByteOperationsProvider localisationBytes;
+    TestSupport::RealLocalisationSource localisationSource(
+        TestGenerated::Descriptors,
+        sizeof(TestGenerated::Descriptors) / sizeof(TestGenerated::Descriptors[0]),
+        localisationBytes
+    );
+    TestSupport::RealLocalisationResolver localisationResolver(
+        localisationSource,
+        localisationBytes
+    );
+    const ESPressio::Localisation::LocalisationContext germanContext{
+        TestGenerated::GermanValidation.Value,
+        TestGenerated::EnglishValidation.Value
+    };
+    const ESPressio::Localisation::LocalisationContext englishContext{
+        TestGenerated::EnglishValidation.Value,
+        TestGenerated::EnglishValidation.Value
+    };
+    std::array<char, 64U> localisationScratchA{};
+    std::array<char, 64U> localisationScratchB{};
+    const ESPressio::Localisation::WritableTextView scratchA{
+        localisationScratchA.data(), localisationScratchA.size()
+    };
+    const ESPressio::Localisation::WritableTextView scratchB{
+        localisationScratchB.data(), localisationScratchB.size()
+    };
+
+    TestSupport::LocalisedReading localisedSource{};
+    localisedSource.Temperature = 27U;
+    const auto localisedMeasurement = Measure<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        localisedSource,
+        localisationResolver,
+        germanContext,
+        scratchA,
+        scratchB
+    );
+    assert(localisedMeasurement.IsSuccessful());
+    std::array<std::uint8_t, 256U> localisedOutput{};
+    const auto localisedSerialisation = Serialise<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        localisedSource,
+        localisedOutput.data(),
+        localisedOutput.size(),
+        localisationResolver,
+        germanContext,
+        scratchA,
+        scratchB
+    );
+    assert(localisedSerialisation.IsSuccessful());
+    constexpr char ExpectedLocalised[] =
+        "{\"RFC5646\":\"de\",\"Temperature\":27}";
+    assert(localisedSerialisation.BytesWritten == sizeof(ExpectedLocalised) - 1U);
+    for (std::size_t index = 0U; index < sizeof(ExpectedLocalised) - 1U; ++index) {
+        assert(localisedOutput[index] == static_cast<std::uint8_t>(ExpectedLocalised[index]));
+    }
+
+    TestSupport::LocalisedReading localisedDestination{};
+    localisedDestination.Temperature = 99U;
+    auto localisedDecode = Deserialise<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        localisedOutput.data(),
+        localisedSerialisation.BytesWritten,
+        localisedDestination,
+        localisationResolver,
+        germanContext,
+        scratchA
+    );
+    assert(localisedDecode.IsSuccessful());
+    assert(localisedDestination.Temperature == 27U);
+
+    constexpr char NoMetadataLocalised[] = "{\"Temperature\":31}";
+    localisedDestination.Temperature = 99U;
+    localisedDecode = Deserialise<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        reinterpret_cast<const std::uint8_t*>(NoMetadataLocalised),
+        sizeof(NoMetadataLocalised) - 1U,
+        localisedDestination,
+        localisationResolver,
+        TestGenerated::EnglishValidation.Value,
+        scratchA
+    );
+    assert(localisedDecode.IsSuccessful());
+    assert(localisedDestination.Temperature == 31U);
+
+    constexpr char MismatchedLanguage[] =
+        "{\"RFC5646\":\"de\",\"Temperature\":40}";
+    localisedDestination.Temperature = 88U;
+    localisedDecode = Deserialise<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        reinterpret_cast<const std::uint8_t*>(MismatchedLanguage),
+        sizeof(MismatchedLanguage) - 1U,
+        localisedDestination,
+        localisationResolver,
+        englishContext,
+        scratchA
+    );
+    assert(localisedDecode.Status == DeserialisationStatus::InvalidLanguageMetadata);
+    assert(localisedDestination.Temperature == 88U);
+
+    constexpr char NonStringLanguage[] =
+        "{\"RFC5646\":123,\"Temperature\":40}";
+    localisedDecode = Deserialise<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        reinterpret_cast<const std::uint8_t*>(NonStringLanguage),
+        sizeof(NonStringLanguage) - 1U,
+        localisedDestination,
+        localisationResolver,
+        germanContext,
+        scratchA
+    );
+    assert(localisedDecode.Status == DeserialisationStatus::InvalidLanguageMetadata);
+    assert(localisedDestination.Temperature == 88U);
+
+    constexpr char NonCanonicalLanguage[] =
+        "{\"RFC5646\":\"EN-gb\",\"Temperature\":40}";
+    localisedDecode = Deserialise<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        reinterpret_cast<const std::uint8_t*>(NonCanonicalLanguage),
+        sizeof(NonCanonicalLanguage) - 1U,
+        localisedDestination,
+        localisationResolver,
+        TestGenerated::EnglishValidation.Value,
+        scratchA
+    );
+    assert(localisedDecode.Status == DeserialisationStatus::InvalidLanguageMetadata);
+    assert(localisedDestination.Temperature == 88U);
+
+    constexpr char UnknownLocalised[] =
+        "{\"RFC5646\":\"en-GB\",\"Unknown\":1,\"Temperature\":44}";
+    localisedDestination.Temperature = 88U;
+    localisedDecode = Deserialise<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        reinterpret_cast<const std::uint8_t*>(UnknownLocalised),
+        sizeof(UnknownLocalised) - 1U,
+        localisedDestination,
+        localisationResolver,
+        englishContext,
+        scratchA
+    );
+    assert(localisedDecode.Status == DeserialisationStatus::FieldNameNotFound);
+    assert(localisedDestination.Temperature == 88U);
+    localisedDecode = Deserialise<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText,
+        StrictnessPolicy::IgnoreUnknownFields
+    >(
+        reinterpret_cast<const std::uint8_t*>(UnknownLocalised),
+        sizeof(UnknownLocalised) - 1U,
+        localisedDestination,
+        localisationResolver,
+        englishContext,
+        scratchA
+    );
+    assert(localisedDecode.IsSuccessful());
+    assert(localisedDestination.Temperature == 44U);
+
+    std::array<char, 4U> tinyLocalisationScratch{};
+    const ESPressio::Localisation::WritableTextView tinyScratch{
+        tinyLocalisationScratch.data(), tinyLocalisationScratch.size()
+    };
+    const auto scratchLimitedMeasurement = Measure<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        localisedSource,
+        localisationResolver,
+        germanContext,
+        tinyScratch,
+        scratchB
+    );
+    assert(scratchLimitedMeasurement.Status == MeasurementStatus::ResourceLimitExceeded);
+
+    const auto overlapMeasurement = Measure<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        localisedSource,
+        localisationResolver,
+        germanContext,
+        scratchA,
+        scratchA
+    );
+    assert(overlapMeasurement.Status == MeasurementStatus::InvalidArgument);
+
+    localisedDestination.Temperature = 88U;
+    localisedDecode = Deserialise<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        localisedOutput.data(),
+        localisedSerialisation.BytesWritten,
+        localisedDestination,
+        localisationResolver,
+        germanContext,
+        tinyScratch
+    );
+    assert(localisedDecode.Status == DeserialisationStatus::ResourceLimitExceeded);
+    assert(localisedDestination.Temperature == 88U);
+
+    constexpr char DuplicateLanguageMetadata[] =
+        "{\"RFC5646\":\"de\",\"RFC5646\":\"de\",\"Temperature\":1}";
+    localisedDestination.Temperature = 88U;
+    localisedDecode = Deserialise<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        reinterpret_cast<const std::uint8_t*>(DuplicateLanguageMetadata),
+        sizeof(DuplicateLanguageMetadata) - 1U,
+        localisedDestination,
+        localisationResolver,
+        germanContext,
+        scratchA
+    );
+    assert(localisedDecode.Status == DeserialisationStatus::DuplicateField);
+    assert(localisedDestination.Temperature == 88U);
+
+    constexpr char DuplicateLogicalField[] =
+        "{\"RFC5646\":\"en-GB\",\"Temperature\":1,\"\\u0054emperature\":2}";
+    localisedDecode = Deserialise<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        reinterpret_cast<const std::uint8_t*>(DuplicateLogicalField),
+        sizeof(DuplicateLogicalField) - 1U,
+        localisedDestination,
+        localisationResolver,
+        englishContext,
+        scratchA
+    );
+    assert(localisedDecode.Status == DeserialisationStatus::DuplicateField);
+    assert(localisedDestination.Temperature == 88U);
+
+    const auto localisedEnvelope = Serialise<
+        Json,
+        RootProfile::TypedEnvelope,
+        FieldProfile::LocalisedText
+    >(
+        localisedSource,
+        localisedOutput.data(),
+        localisedOutput.size(),
+        localisationResolver,
+        germanContext,
+        scratchA,
+        scratchB
+    );
+    assert(localisedEnvelope.IsSuccessful());
+    localisedDestination.Temperature = 0U;
+    localisedDecode = Deserialise<
+        Json,
+        RootProfile::TypedEnvelope,
+        FieldProfile::LocalisedText
+    >(
+        localisedOutput.data(),
+        localisedEnvelope.BytesWritten,
+        localisedDestination,
+        localisationResolver,
+        germanContext,
+        scratchA
+    );
+    assert(localisedDecode.IsSuccessful());
+    assert(localisedDestination.Temperature == 27U);
+
+    // Recursive LocalisedText schema propagation.
+
+    TestSupport::TestLocalisationResolver normalResolver{
+        TestSupport::TestLocalisationMode::Normal
+    };
+    TestSupport::LocalisedNestedRoot nestedLocalised{};
+    nestedLocalised.Child.Value = 71U;
+    std::array<std::uint8_t, 256U> nestedLocalisedOutput{};
+    const auto nestedLocalisedSerialisation = Serialise<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        nestedLocalised,
+        nestedLocalisedOutput.data(),
+        nestedLocalisedOutput.size(),
+        normalResolver,
+        englishContext,
+        scratchA,
+        scratchB
+    );
+    assert(nestedLocalisedSerialisation.IsSuccessful());
+    constexpr char ExpectedNestedLocalised[] =
+        "{\"RFC5646\":\"en-GB\",\"Alpha\":{\"RFC5646\":\"en-GB\",\"Alpha\":71}}";
+    assert(nestedLocalisedSerialisation.BytesWritten == sizeof(ExpectedNestedLocalised) - 1U);
+    TestSupport::LocalisedNestedRoot nestedLocalisedDestination{};
+    const auto nestedLocalisedDecode = Deserialise<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        nestedLocalisedOutput.data(),
+        nestedLocalisedSerialisation.BytesWritten,
+        nestedLocalisedDestination,
+        normalResolver,
+        englishContext,
+        scratchA
+    );
+    assert(nestedLocalisedDecode.IsSuccessful());
+    assert(nestedLocalisedDestination.Child.Value == 71U);
+
+    // Focused resolver-double coverage for valid runtime failure outcomes.
+
+    TestSupport::LocalisedPair pair{};
+    TestSupport::TestLocalisationResolver collisionResolver{
+        TestSupport::TestLocalisationMode::Collision
+    };
+    auto localisedFailure = Measure<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        pair,
+        collisionResolver,
+        englishContext,
+        scratchA,
+        scratchB
+    );
+    assert(localisedFailure.Status == MeasurementStatus::FieldNameCollision);
+
+    TestSupport::TestLocalisationResolver reservedResolver{
+        TestSupport::TestLocalisationMode::Reserved
+    };
+    localisedFailure = Measure<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        pair,
+        reservedResolver,
+        englishContext,
+        scratchA,
+        scratchB
+    );
+    assert(localisedFailure.Status == MeasurementStatus::FieldNameCollision);
+
+    TestSupport::TestLocalisationResolver unavailableResolver{
+        TestSupport::TestLocalisationMode::Unavailable
+    };
+    localisedFailure = Measure<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        pair,
+        unavailableResolver,
+        englishContext,
+        scratchA,
+        scratchB
+    );
+    assert(localisedFailure.Status == MeasurementStatus::LocalisationFailure);
+
+    TestSupport::TestLocalisationResolver ambiguousResolver{
+        TestSupport::TestLocalisationMode::Ambiguous
+    };
+    TestSupport::LocalisedEmpty emptyLocalised{};
+    constexpr char AmbiguousLocalised[] = "{\"Something\":1}";
+    auto ambiguousDecode = Deserialise<
+        Json,
+        RootProfile::KnownTypeBody,
+        FieldProfile::LocalisedText
+    >(
+        reinterpret_cast<const std::uint8_t*>(AmbiguousLocalised),
+        sizeof(AmbiguousLocalised) - 1U,
+        emptyLocalised,
+        ambiguousResolver,
+        TestGenerated::EnglishValidation.Value,
+        scratchA
+    );
+    assert(ambiguousDecode.Status == DeserialisationStatus::FieldNameAmbiguous);
 
     return 0;
 }

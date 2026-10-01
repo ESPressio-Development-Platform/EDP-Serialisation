@@ -12,3 +12,5 @@
 - [Compiler Definitions](Compiler-Definitions)
 - [Tooling Reference](Tooling-Reference)
 - [Reference Index](Reference-Index)
+
+- [JSON LocalisedText Reference](Reference-JsonLocalisedText)

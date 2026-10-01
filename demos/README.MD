@@ -15,3 +15,8 @@ Builds the implemented transactional JSON + Known-Type Body + Numeric Field deco
 ## json-typed-envelope
 
 Builds the implemented JSON Typed Envelope profile over Numeric Fields. It emits the canonical `$edp` metadata object with envelope version `1` and the root Type's 16-character lowercase `TypeIdentifier`, then transactionally decodes the same caller-owned bytes back into the identified schema. The demo intentionally avoids floating-point so its footprint isolates envelope/root-metadata behavior.
+
+
+## json-localised-text
+
+Builds the JSON LocalisedText Field profile using a compact resolver-compatible provider over the real EDP-Localisation public vocabulary. It emits `{"RFC5646":"en-GB","Temperature":23}` into caller-owned bytes, then transactionally reverse-resolves `Temperature` back to FieldIdentifier `0`. The permanent host suite separately exercises the same Serialisation profile against EDP-Localisation's real generated binary-pack Resolver/fallback implementation.

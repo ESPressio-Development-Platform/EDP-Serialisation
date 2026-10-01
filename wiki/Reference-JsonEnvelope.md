@@ -14,14 +14,16 @@ This header implements the JSON `RootProfile::TypedEnvelope` wrapper. Public con
 ## Encoding helpers
 
 - `EncodeJsonTypeIdentifier` — emits exactly eight `TypeIdentifier::Bytes()` as 16 lowercase hexadecimal characters inside a JSON String.
-- `EncodeJsonTypedEnvelope<TSink,TValue>` — statically requires `System::IdentifiedType<TValue>` and emits canonical `{"$edp":{"v":1,"type":"..."},"value":<body>}`. The body is delegated to `EncodeJsonValue`, so no second schema/value encoder exists.
+- `EncodeJsonTypedEnvelopeWithFieldPolicy<TFieldPolicy,TSink,TValue>` — statically requires `System::IdentifiedType<TValue>` and emits canonical `{"$edp":{"v":1,"type":"..."},"value":<body>}` while propagating Numeric or LocalisedText policy into the body.
+- `EncodeJsonTypedEnvelope<TSink,TValue>` — Numeric-policy wrapper retaining the original Numeric internal entry point.
 
 ## Decoding helpers
 
 - `DecodeJsonEnvelopeVersion` — parses one JSON number and accepts only the current `TypedEnvelopeVersion`; any other valid numeric version returns the internal `UnsupportedEnvelopeVersion`.
 - `DecodeJsonEnvelopeTypeIdentifier<TValue>` — parses exactly 16 logical lowercase hexadecimal characters and compares them directly with the compile-time target Type's canonical bytes. Malformed text and semantic mismatch remain distinct outcomes.
 - `DecodeJsonEnvelopeMetadata<TParserLimits,TValue>` — validates exactly one `v` and one `type` member, permits either order, rejects duplicate/unknown/missing metadata, and accounts the metadata object against nesting limits.
-- `DecodeJsonTypedEnvelope<TPopulate,TStrictness,TParserLimits,TValue>` — validates exactly one `$edp` and one `value` member in either order, delegates body processing to `DecodeJsonValue`, and reuses the public operation's validate-then-populate replay model.
+- `DecodeJsonTypedEnvelopeWithFieldPolicy<TPopulate,TStrictness,TParserLimits,TFieldPolicy,TValue>` — validates exactly one `$edp` and one `value` member in either order and propagates the selected Field policy into body decode.
+- `DecodeJsonTypedEnvelope<TPopulate,TStrictness,TParserLimits,TValue>` — Numeric-policy wrapper retaining the original internal entry point.
 
 ## Transactionality
 

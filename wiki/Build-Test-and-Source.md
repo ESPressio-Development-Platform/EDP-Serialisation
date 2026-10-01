@@ -17,7 +17,7 @@ Supported test-runner controls:
 - `CXX` — selects the host compiler (validated with GCC and Clang on AI-AGENT-02).
 - `EDP_SERIALISATION_SANITIZER_MODE=undefined` — UBSan host pass.
 - `EDP_SERIALISATION_SANITIZER_MODE=address` — ASan host pass.
-- `EDP_SYSTEM_SOURCE_DIR`, `EDP_BOUNDED_TYPES_SOURCE_DIR`, `EDP_PLATFORM_SOURCE_DIR`, `EDP_MEMORY_SOURCE_DIR`, `EDP_BOUNDED_TOPOLOGY_SOURCE_DIR`, `EDP_PLATFORM_PORTABLE_SOURCE_DIR` — explicit dependency source roots.
+- `EDP_SYSTEM_SOURCE_DIR`, `EDP_BOUNDED_TYPES_SOURCE_DIR`, `EDP_PLATFORM_SOURCE_DIR`, `EDP_MEMORY_SOURCE_DIR`, `EDP_BOUNDED_TOPOLOGY_SOURCE_DIR`, `EDP_PLATFORM_PORTABLE_SOURCE_DIR`, `EDP_LOCALISATION_SOURCE_DIR` — explicit dependency source roots. The Localisation root also supplies the generated binary-pack integration fixture used only by host tests.
 
 `tests/CMakeLists.txt` supplies a second host-build surface using the same dependency roots.
 
@@ -34,7 +34,7 @@ Current negative contracts prove:
 
 ## Embedded demos
 
-`demos/type-qualification`, `demos/json-numeric-encoding`, and `demos/json-numeric-decoding` all exist in the three V2-required forms. AI-AGENT-02 validated both PlatformIO variants for all three demos against Arduino-ESP32 and ESP-IDF. The encoding demo instantiates floating encoding plus String, Optional, Bytes/Base64, schema ordering, Measure and Serialise. The decoding demo instantiates floating `from_chars`, UTF-8/Optional/Base64 and transactional schema population. The appliance currently has no `arduino-cli`, so the Arduino IDE `.ino` form is maintained/buildable source but did not receive a distinct Arduino-CLI execution gate in this checkpoint.
+`demos/type-qualification`, `demos/json-numeric-encoding`, `demos/json-numeric-decoding`, `demos/json-typed-envelope`, and `demos/json-localised-text` all exist in the three V2-required forms. AI-AGENT-02 validated both PlatformIO variants for all five demos against Arduino-ESP32 and ESP-IDF. The encoding demo instantiates floating encoding plus String, Optional, Bytes/Base64, schema ordering, Measure and Serialise. The decoding demo instantiates floating `from_chars`, UTF-8/Optional/Base64 and transactional schema population. The appliance currently has no `arduino-cli`, so the Arduino IDE `.ino` form is maintained/buildable source but did not receive a distinct Arduino-CLI execution gate in this checkpoint.
 
 The ESP-IDF builds emitted the existing `esp32dev` profile warning (configured 4 MB flash vs detected 2 MB) and still linked/produced firmware successfully. The new decoder demo measured 304,460 bytes flash / 22,260 bytes RAM under PlatformIO Arduino and 220,953 bytes flash / 12,616 bytes RAM under PlatformIO ESP-IDF.
 
@@ -44,4 +44,4 @@ The ESP-IDF builds emitted the existing `esp32dev` profile warning (configured 4
 
 The JSON demo's float-instantiating builds also established the current libstdc++ flash-size cost of floating `std::to_chars`; see [Resources, Lifecycle and Concurrency](Resources-Lifecycle-and-Concurrency).
 
-The maintained `json-typed-envelope` demo is built in PlatformIO Arduino and PlatformIO ESP-IDF by the checked-in validation workflow; its Arduino IDE form is retained alongside those executable variants.
+The maintained `json-typed-envelope` and `json-localised-text` demos are built in PlatformIO Arduino and PlatformIO ESP-IDF by the checked-in validation workflow; their Arduino IDE forms are retained alongside those executable variants. LocalisedText host coverage uses the real EDP-Localisation generated in-binary pack/Resolver; its compact embedded demo uses a resolver-compatible facade to keep the example source focused.

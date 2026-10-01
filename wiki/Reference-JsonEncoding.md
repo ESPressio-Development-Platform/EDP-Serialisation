@@ -19,6 +19,9 @@ This header is the allocation-free recursive JSON encoder used by the public Mea
 - `NonFiniteNumber` — float/double was NaN or infinity.
 - `InvalidUtf8` — bounded String failed V1 UTF-8 validation.
 - `AdaptationFailed` — forward canonical Type conversion reported non-success.
+- `InvalidLanguageMetadata` — LocalisedText language metadata/context is malformed or inconsistent.
+- `FieldNameCollision` — two emitted Fields resolve to one textual key or a Field collides with reserved `RFC5646`.
+- `LocalisationFailure` — required forward presentation resolution could not complete conclusively.
 
 ### `Utf8ValidationStatus`
 
@@ -80,13 +83,15 @@ Validates exactly `length` bytes without null scanning. It accepts legal UTF-8 s
 
 ## Recursive traversal
 
-`EncodeJsonArray` emits a finite indexed source as `[...]`, placing commas deterministically and recursively invoking `EncodeJsonValue` for each element.
+`JsonNumericFieldEncodingPolicy` is the zero-state Numeric key policy. `EncodeJsonSchemaPrefix` and `EncodeJsonSchemaFieldKey` are overload points selected by policy type; Numeric emits no prefix and canonical decimal numeric keys. `JsonLocalisedText.hpp` supplies the LocalisedText overloads.
 
-`EncodeJsonSchemaFields<TIdentifier>` probes Field identifiers in ascending numeric order. For a present binding it omits disengaged Optional object Fields; otherwise it emits comma/key/value and records Type/Field diagnostic identity on failure. It recursively advances through the finite 0..255 identity domain.
+`EncodeJsonArray` emits a finite indexed source as `[...]`, placing commas deterministically and recursively invoking `EncodeJsonValueWithFieldPolicy` for each element.
 
-`EncodeJsonSchema` writes braces and delegates Field emission to the ascending identifier traversal.
+`EncodeJsonSchemaFields<TIdentifier,TFieldPolicy>` probes Field identifiers in ascending numeric order and asks the active policy to emit each key. For a present binding it omits disengaged Optional object Fields; otherwise it emits comma/key/value and records Type/Field diagnostic identity on failure. It recursively advances through the finite 0..255 identity domain.
 
-`EncodeJsonValue` is the central recursive dispatcher over the complete currently-qualified V1 universe:
+`EncodeJsonSchema<TFieldPolicy>` writes braces, delegates optional schema prefix metadata to the active policy, then delegates Field emission to the ascending identifier traversal.
+
+`EncodeJsonValueWithFieldPolicy` is the central recursive dispatcher over the complete currently-qualified V1 universe; `EncodeJsonValue` is the Numeric-policy wrapper retained for Numeric public operations:
 
 - bool;
 - fixed-width integers;
@@ -108,4 +113,5 @@ Strong Types allocate no heap state: the function nothrow-default-constructs the
 - no declaration-order wire dependence for schema Fields;
 - String and Bytes remain semantically distinct despite both using JSON String tokens;
 - measurement and output use the same traversal implementation through different sinks;
+- Numeric and LocalisedText share one scalar/container/value traversal and differ only at schema prefix/key policy hooks;
 - caller-owned output is entered only after complete public preflight measurement.
