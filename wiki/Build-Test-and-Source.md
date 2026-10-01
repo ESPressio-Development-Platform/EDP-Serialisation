@@ -4,7 +4,7 @@
 
 - `src/ESPressio_Serialisation.hpp` — repository-level public umbrella.
 - `src/serialisation/Serialisation.hpp` — internal public-header aggregator.
-- focused headers under `src/serialisation/` own traits, profiles, limits, results, Type qualification, and System identifier integration.
+- focused headers under `src/serialisation/` own traits, profiles, limits, results, Type qualification, System identifier integration, JSON encoding internals, and public operations.
 
 The [Reference Index](Reference-Index) maps every production header to a dedicated reference page.
 
@@ -27,14 +27,17 @@ Current negative contracts prove:
 
 - canonical strong-Type adaptation requires both conversion directions;
 - directly nested Optional is rejected;
-- enums require explicit `EnumSerialisationTraits` certification.
+- enums require explicit `EnumSerialisationTraits` certification;
+- canonical strong-Type surrogates used for generic encoding must be nothrow default-constructible.
 
 ## Embedded demos
 
-`demos/type-qualification` exists in all three V2-required forms. AI-AGENT-02 validated both PlatformIO variants against Arduino-ESP32 and ESP-IDF. The appliance currently has no `arduino-cli`, so the Arduino IDE `.ino` form is maintained/buildable source but did not receive a distinct Arduino-CLI execution gate in this checkpoint.
+`demos/type-qualification` and `demos/json-numeric-encoding` both exist in all three V2-required forms. AI-AGENT-02 validated both PlatformIO variants for both demos against Arduino-ESP32 and ESP-IDF. The JSON demo instantiates floating encoding as well as String, Optional, Bytes/Base64, schema ordering, Measure and Serialise. The appliance currently has no `arduino-cli`, so the Arduino IDE `.ino` form is maintained/buildable source but did not receive a distinct Arduino-CLI execution gate in this checkpoint.
 
 The ESP-IDF build emitted the existing `esp32dev` profile warning (configured 4 MB flash vs detected 2 MB) and still linked/produced firmware successfully.
 
 ## GitHub Actions
 
 `.github/workflows/validate.yml` is the maintained reproducible workflow definition. Per current V2 policy, GitHub Actions execution is not authoritative validation evidence; AI-AGENT-02 execution is authoritative for this tranche.
+
+The JSON demo's float-instantiating builds also established the current libstdc++ flash-size cost of floating `std::to_chars`; see [Resources, Lifecycle and Concurrency](Resources-Lifecycle-and-Concurrency).

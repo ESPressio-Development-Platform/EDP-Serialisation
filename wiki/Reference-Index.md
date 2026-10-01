@@ -5,7 +5,9 @@
 | `src/ESPressio_Serialisation.hpp` | PUBLIC UMBRELLA | [Umbrella](Reference-ESPressio-Serialisation) |
 | `src/serialisation/CanonicalRepresentation.hpp` | PUBLIC TRAIT API | [CanonicalRepresentation](Reference-CanonicalRepresentation) |
 | `src/serialisation/EnumSerialisationTraits.hpp` | PUBLIC TRAIT API | [EnumSerialisationTraits](Reference-EnumSerialisationTraits) |
+| `src/serialisation/JsonEncoding.hpp` | PRIVATE IMPLEMENTATION | [JSON Encoding](Reference-JsonEncoding) |
 | `src/serialisation/Optional.hpp` | PUBLIC TYPE ALIAS | [Optional](Reference-Optional) |
+| `src/serialisation/Operations.hpp` | PUBLIC OPERATION API / PRIVATE HELPERS | [Operations](Reference-Operations) |
 | `src/serialisation/ParserLimits.hpp` | PUBLIC POLICY API | [ParserLimits](Reference-ParserLimits) |
 | `src/serialisation/Profiles.hpp` | PUBLIC PROFILE API | [Profiles](Reference-Profiles) |
 | `src/serialisation/Results.hpp` | PUBLIC RESULT API | [Results](Reference-Results) |

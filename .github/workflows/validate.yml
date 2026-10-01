@@ -112,3 +112,5 @@ jobs:
       - run: pip install platformio
       - run: pio run -d demos/type-qualification/PlatformIO_Arduino
       - run: pio run -d demos/type-qualification/PlatformIO_ESP-IDF
+      - run: pio run -d demos/json-numeric-encoding/PlatformIO_Arduino
+      - run: pio run -d demos/json-numeric-encoding/PlatformIO_ESP-IDF

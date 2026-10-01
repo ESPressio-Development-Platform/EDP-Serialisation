@@ -34,3 +34,7 @@ A `System::SchemaType` qualifies only when every Field value recursively qualifi
 `CanonicalRepresentation<T>` names one direct surrogate. Both `TypeConversionAdapter<T,Representation>` and the reverse adapter must exist, be `noexcept`, and expose the generic `IsSuccessful(ResultType)` capability detected by BoundedTypes. The representation itself must be directly serialisable without another canonical adaptation, preventing adaptation chains.
 
 The library supplies this integration for System identifier value Types using their canonical byte/storage domains.
+
+## Canonical surrogate construction
+
+Forward encoding uses the existing pairwise `TypeConversionAdapter<Strong, Representation>` contract, which populates an already-existing target object. Generic Serialisation therefore also requires the direct canonical surrogate to be nothrow default-constructible so it can create bounded temporary conversion storage without introducing a second construction/conversion extension point.

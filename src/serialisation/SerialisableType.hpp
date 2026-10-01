@@ -158,6 +158,10 @@ namespace ESPressio::Serialisation {
                     // A canonical surrogate may contain adapted nested values but may not itself
                     // be another strong Type requiring a second canonical adaptation hop.
                     return false;
+                } else if constexpr (!std::is_nothrow_default_constructible_v<NormalizedRepresentation>) {
+                    // Forward encoding must create bounded temporary storage which the existing
+                    // TypeConversionAdapter can populate without adding another construction API.
+                    return false;
                 } else if constexpr (!SerialisableTypeTrait<NormalizedRepresentation>::Value) {
                     return false;
                 } else if constexpr (!Bounded::IsTypeConversionAvailable<TValue, NormalizedRepresentation>) {

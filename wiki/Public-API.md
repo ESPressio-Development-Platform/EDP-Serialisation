@@ -2,7 +2,7 @@
 
 **Primary entry point:** `src/ESPressio_Serialisation.hpp`.
 
-The current supported consumer/extension surface is compile-time only; JSON/CBOR operation functions are not yet implemented.
+The supported surface now includes the compile-time foundation plus JSON + Known-Type Body + Numeric Field encoding operations. Decode, Typed Envelope, LocalisedText, and CBOR remain pending.
 
 ## Type qualification and extension
 
@@ -27,7 +27,15 @@ The current supported consumer/extension surface is compile-time only; JSON/CBOR
 - `DeserialisationStatus` / `DeserialisationResult`.
 - `Diagnostic` — bounded common byte-offset/Type/Field context; it owns no dynamic path tree.
 
-These operation-specific result families are implemented vocabulary for later codec functions and do not themselves claim those functions are present yet.
+`MeasurementResult` and `SerialisationResult` are returned by the implemented encoding operations. `DeserialisationResult` remains reserved for the pending decoder.
+
+## Encoding operations
+
+- `Measure<Json>(value)` validates the complete source and returns the exact canonical encoded byte count for Known-Type Body + Numeric Fields.
+- `Serialise<Json>(value, output, capacity)` performs exact preflight measurement before writing and returns `BytesWritten == 0` for invalid source, failed adaptation, null output, or insufficient capacity. Its optional compile-time ByteOperations provider parameter defaults to EDP-Platform-Portable and must satisfy the EDP-Memory provider contract.
+- The root/Field template parameters default to `KnownTypeBody` / `Numeric`; selecting an unimplemented profile currently fails at compile time rather than falling back silently.
+
+The caller owns source and output storage. The source and any forward canonical adapters must remain observationally stable during the two-pass call.
 
 ## System identifier integration
 

@@ -97,10 +97,11 @@ PRIVATE IMPLEMENTATION consteval predicate implementing S1:
 1. `CanonicalRepresentation<TValue>::Type` must exist.
 2. Representation must not be a reference or the same normalized Type as `TValue`.
 3. Representation itself must not expose another `CanonicalRepresentation`, preventing a top-level adaptation chain.
-4. Representation must recursively satisfy `SerialisableTypeTrait`; valid nested Fields/elements may independently use their own adaptations.
-5. Both BoundedTypes conversion directions must be available.
-6. Both directions must expose `HasTypeConversionSuccessPredicate`.
-7. Both adapter Types must advertise `IsNoexcept`.
+4. Representation must be nothrow default-constructible so generic forward encoding can provide the existing adapter with bounded target storage.
+5. Representation must recursively satisfy `SerialisableTypeTrait`; valid nested Fields/elements may independently use their own adaptations.
+6. Both BoundedTypes conversion directions must be available.
+7. Both directions must expose `HasTypeConversionSuccessPredicate`.
+8. Both adapter Types must advertise `IsNoexcept`.
 
 The function performs compile-time qualification only; it does not execute conversion.
 
@@ -119,4 +120,4 @@ This ordered dispatch avoids probing System schema machinery for unrelated scala
 
 ## Validation relationships
 
-Host coverage proves positive scalar, enum, bounded container, fixed-array, Optional, nested schema, adapted strong Type, schema-with-adapted-Field, and System identifier cases. Negative assertions cover dynamic STL owners, pointers, `long double`, unsupported schema Fields and nested Optional. Compile-fail fixtures separately prove uncertified enums and incomplete adaptations are rejected.
+Host coverage proves positive scalar, enum, bounded container, fixed-array, Optional, nested schema, adapted strong Type, schema-with-adapted-Field, and System identifier cases. Negative assertions cover dynamic STL owners, pointers, `long double`, unsupported schema Fields and nested Optional. Compile-fail fixtures separately prove uncertified enums, incomplete adaptations, nested Optional, and non-default-constructible canonical surrogates are rejected.

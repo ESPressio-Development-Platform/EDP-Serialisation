@@ -1,30 +1,33 @@
 # EDP-Serialisation Dependency Graph
 
-> Baseline: 2026-10-01 — first implementation foundation. Direct dependencies are intentionally minimal; codec/localisation/memory dependencies are added only when implementation starts consuming them directly.
+> Baseline: 2026-10-01 — JSON Numeric/Known-Type encoding implementation. Direct dependencies reflect source-level ownership rather than relying on transitive availability.
 
 ## Library Dependency Tree
 
 ```text
 EDP-Serialisation
 ├── EDP-System [mandatory]
-└── EDP-BoundedTypes [mandatory]
-    ├── EDP-Memory [mandatory]
-    │   ├── EDP-System [mandatory]
-    │   ├── EDP-Platform [mandatory]
-    │   │   └── EDP-System [mandatory, transitive]
-    │   └── EDP-BoundedTopology [mandatory]
-    └── EDP-Platform-Portable [mandatory]
-        ├── EDP-Platform [mandatory]
-        └── EDP-Memory [mandatory]
+├── EDP-BoundedTypes [mandatory]
+├── EDP-Memory [mandatory]
+│   ├── EDP-System [mandatory]
+│   ├── EDP-Platform [mandatory]
+│   └── EDP-BoundedTopology [mandatory]
+└── EDP-Platform-Portable [mandatory]
+    ├── EDP-Platform [mandatory]
+    └── EDP-Memory [mandatory]
 ```
+
+`EDP-BoundedTypes` also depends on EDP-Memory and EDP-Platform-Portable, but Serialisation declares those edges directly because production JSON output now consumes their contracts itself.
 
 ## Direct dependency ownership
 
 - `EDP-System` — canonical semantic Type/Field identity and schema traversal (`TypeIdentifier`, `FieldIdentifier`, `FieldBinding`, `FieldSet`, `SchemaType`, `ForEachField`).
-- `EDP-BoundedTypes` — bounded String/Bytes/Vector values and the pairwise `TypeConversionAdapter` plus generic success-predicate capability used by strong semantic adaptation.
+- `EDP-BoundedTypes` — bounded String/Bytes/Vector values and pairwise `TypeConversionAdapter` plus generic success interpretation used by strong semantic adaptation.
+- `EDP-Memory` — authoritative `ByteOperations` provider contract used for caller-buffer byte-range writes; Serialisation does not implement a parallel raw-copy primitive.
+- `EDP-Platform-Portable` — default stateless Standard C/C++ `ByteOperationsProvider`. `Serialise` exposes the provider as a compile-time substitution point, so alternative conforming providers can be selected without retaining provider state.
 
-The foundation introduces no dependency from System or BoundedTypes back to Serialisation. `EDP-Serialisation` remains above those libraries in the dependency DAG.
+No dependency points from these foundational repositories back to Serialisation. The DAG therefore remains acyclic.
 
-## Deferred direct dependencies
+## Deferred direct dependency
 
-`EDP-Localisation` and `EDP-Memory` are not direct dependencies in this foundation slice because no implemented source currently calls their contracts. They must be declared directly in the slice where localised Field profiles and raw memory operations respectively begin consuming them.
+`EDP-Localisation` is not yet a direct dependency because `FieldProfile::LocalisedText` execution remains pending. It must be declared directly when production source begins consuming forward/reverse localisation contracts.

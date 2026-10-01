@@ -1,6 +1,6 @@
 # Profiles, Limits and Result Vocabulary
 
-This foundation slice publishes the compile-time vocabulary consumed by later JSON/CBOR operation implementations.
+The compile-time vocabulary is now consumed by the first implemented operation profile: JSON + Known-Type Body + Numeric Fields encoding. Other codec/profile combinations remain pending.
 
 ## Codec and profile selection
 
@@ -16,4 +16,4 @@ This foundation slice publishes the compile-time vocabulary consumed by later JS
 
 V2 code-convention policy deliberately prohibits one library-wide result enum. `MeasurementStatus`, `SerialisationStatus`, and `DeserialisationStatus` therefore describe only their coherent operation families. Their result structs expose relevant byte counts and a compact shared `Diagnostic` containing byte offset and optional immediate Type/Field identity.
 
-The presence of these result Types does not imply codec operations are implemented in this foundation slice; they establish the public vocabulary those operations must return.
+`MeasurementResult` and `SerialisationResult` are now returned by the implemented JSON Numeric/Known-Type encoding operations. `DeserialisationResult` remains reserved for the pending decode implementation.

@@ -7,7 +7,9 @@ Aggregates the focused production headers:
 
 - `CanonicalRepresentation.hpp`;
 - `EnumSerialisationTraits.hpp`;
+- `JsonEncoding.hpp`;
 - `Optional.hpp`;
+- `Operations.hpp`;
 - `ParserLimits.hpp`;
 - `Profiles.hpp`;
 - `Results.hpp`;

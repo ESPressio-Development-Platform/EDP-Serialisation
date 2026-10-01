@@ -2,7 +2,7 @@
 
 Deterministic, allocation-free, schema-driven serialisation for the ESPressio Development Platform.
 
-The library is currently in its pre-1.0 implementation tranche at version `0.1.0`. The first public foundation is implemented: compile-time serialisable-Type qualification, canonical strong-Type adaptation declarations, enum certification, System identifier adapters, profiles, parser limits, diagnostics, and operation-specific result vocabulary. JSON/CBOR codec execution is introduced in subsequent implementation slices and is not claimed by this checkpoint.
+The library is currently in its pre-1.0 implementation tranche at version `0.1.0`. The compile-time foundation is implemented, together with the first executable codec profile: exact `Measure` and all-or-nothing `Serialise` for JSON + Known-Type Body + Numeric Fields. JSON decoding, Typed Envelope execution, LocalisedText Fields, and CBOR remain later implementation slices.
 
 ## Core Guarantees
 
@@ -18,10 +18,11 @@ The library is currently in its pre-1.0 implementation tranche at version `0.1.0
 ## Documentation
 
 - [V1 Type Qualification](./docs/TYPE-QUALIFICATION.MD) — defines the recursive Type universe, enum certification, schema recursion, bounded containers, and strong semantic adaptation.
-- [Profiles, Limits and Results](./docs/PROFILES-AND-RESULTS.MD) — defines compile-time codec/profile vocabulary, parser resource policy, and the operation-specific result families reserved for the codec implementation slices.
+- [Profiles, Limits and Results](./docs/PROFILES-AND-RESULTS.MD) — defines compile-time codec/profile vocabulary, parser resource policy, and operation-specific result families.
+- [JSON Numeric Known-Type Encoding](./docs/JSON-NUMERIC-ENCODING.MD) — defines the implemented `Measure`/`Serialise` profile, canonical wire rules, no-partial-output guarantee, and resource behavior.
 - [Dependency Graph](./DEPENDENCY_GRAPH.MD) — records direct ownership boundaries and current transitive dependency topology.
 
-## Implemented Foundation API
+## Implemented API
 
 ```cpp
 #include <ESPressio_Serialisation.hpp>
@@ -41,7 +42,9 @@ Public foundation components:
 - `Json` / `Cbor`, `RootProfile`, `FieldProfile`, `StrictnessPolicy`;
 - `ParserLimits<>` / `DefaultParserLimits`;
 - operation-specific `MeasurementResult`, `SerialisationResult`, and `DeserialisationResult` families;
-- canonical adapters for `System::TypeIdentifier`, `FieldIdentifier`, `TypeAuthorityIdentifier`, and `TypeLocalIdentifier`.
+- canonical adapters for `System::TypeIdentifier`, `FieldIdentifier`, `TypeAuthorityIdentifier`, and `TypeLocalIdentifier`;
+- `Measure<Json>(value)` for exact canonical JSON size/validation;
+- `Serialise<Json>(value, output, capacity)` for JSON + Known-Type Body + Numeric Fields.
 
 ## Fixed-width integer note
 
@@ -49,11 +52,11 @@ The V1 contract is defined in terms of the fixed-width C++ Types `std::int8_t` t
 
 ## Dependencies
 
-Direct dependencies are `EDP-System` and `EDP-BoundedTypes`. See [DEPENDENCY_GRAPH.MD](./DEPENDENCY_GRAPH.MD).
+Direct dependencies are `EDP-System`, `EDP-BoundedTypes`, `EDP-Memory`, and `EDP-Platform-Portable`. The latter two own the ByteOperations contract and default stateless portable provider used by caller-buffer writes. See [DEPENDENCY_GRAPH.MD](./DEPENDENCY_GRAPH.MD).
 
 ## Demos
 
-`demos/type-qualification` demonstrates schema recursion, bounded values, enum certification, profile vocabulary, and compile-time qualification in Arduino IDE, PlatformIO Arduino, and PlatformIO ESP-IDF forms.
+`demos/type-qualification` demonstrates schema recursion, bounded values, enum certification, profile vocabulary, and compile-time qualification. `demos/json-numeric-encoding` demonstrates canonical Numeric Field ordering, Optional omission, floating encoding, Base64 Bytes, exact measurement and caller-buffer serialisation. Both demos are maintained in Arduino IDE, PlatformIO Arduino, and PlatformIO ESP-IDF forms.
 
 ## Validation
 

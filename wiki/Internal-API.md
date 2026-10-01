@@ -1,10 +1,10 @@
 # Internal API
 
-The current internal implementation surface is entirely compile-time and lives under `ESPressio::Serialisation::Detail` in `src/serialisation/SerialisableType.hpp`.
+The internal implementation surface now spans compile-time classification in `SerialisableType.hpp`, allocation-free JSON traversal/sinks in `JsonEncoding.hpp`, and public-operation/profile mapping helpers in `Operations.hpp`.
 
 These symbols are **PRIVATE IMPLEMENTATION**, not cross-repository provider contracts: no other EDP repository should compile against them. They may change without preserving public compatibility so long as `SerialisableType<T>` semantics remain intact.
 
-The internal layer provides:
+The classifier layer provides:
 
 - cv-normalisation (`NormalizedType`);
 - fixed-width integer and supported-floating classifiers;
@@ -19,3 +19,17 @@ The internal layer provides:
 The compatibility pre-gate does not replace System ownership. `EDP-System#10` already owns the substitution-safe `IdentifiedType`/`SchemaType` correction on its `serialisation_prerequisites` branch; Serialisation retains the pre-gate while consuming current System `main`.
 
 For symbol-level invariants see [Reference — SerialisableType](Reference-SerialisableType).
+
+## JSON encoder internals
+
+The JSON encoder layer provides:
+
+- zero-storage measurement and caller-buffer sinks;
+- exact UTF-8 validation and deterministic escaping;
+- canonical integer/float/Base64 emission;
+- compile-time numeric Field binding lookup and ascending Field emission;
+- recursive array, bounded Vector, Optional, schema, enum and strong-Type traversal.
+
+`Operations.hpp` maps internal outcomes to the public operation-specific result families and compile-time rejects codec/profile combinations not yet implemented. These Detail declarations are **PRIVATE IMPLEMENTATION**, not cross-repository contracts.
+
+See [Reference — JSON Encoding](Reference-JsonEncoding) and [Reference — Operations](Reference-Operations).
