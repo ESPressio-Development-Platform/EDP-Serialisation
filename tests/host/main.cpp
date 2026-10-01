@@ -1106,5 +1106,122 @@ int main() {
     );
     assert(decodeResult.Status == DeserialisationStatus::MalformedRepresentation);
 
+    // Typed Envelope canonical output and transactional metadata validation.
+
+    TestSupport::Payload envelopeSource{};
+    assert(
+        envelopeSource.Name.Assign(
+            "typed",
+            5U
+        ) == ESPressio::Bounded::StringAssignmentResult::Succeeded
+    );
+    envelopeSource.Child.Value = 21U;
+    const auto envelopeMeasurement = Measure<
+        Json,
+        RootProfile::TypedEnvelope
+    >(envelopeSource);
+    assert(envelopeMeasurement.IsSuccessful());
+    std::array<std::uint8_t, 512U> envelopeOutput{};
+    const auto envelopeSerialisation = Serialise<
+        Json,
+        RootProfile::TypedEnvelope
+    >(
+        envelopeSource,
+        envelopeOutput.data(),
+        envelopeOutput.size()
+    );
+    assert(envelopeSerialisation.IsSuccessful());
+    constexpr char ExpectedEnvelope[] =
+        "{\"$edp\":{\"v\":1,\"type\":\"0000010000000002\"},\"value\":{\"4\":{\"9\":21},\"7\":\"typed\"}}";
+    assert(envelopeSerialisation.BytesWritten == sizeof(ExpectedEnvelope) - 1U);
+    for (std::size_t index = 0U; index < sizeof(ExpectedEnvelope) - 1U; ++index) {
+        assert(envelopeOutput[index] == static_cast<std::uint8_t>(ExpectedEnvelope[index]));
+    }
+
+    TestSupport::Payload envelopeDestination{};
+    envelopeDestination.Child.Value = 99U;
+    auto envelopeDeserialisation = Deserialise<
+        Json,
+        RootProfile::TypedEnvelope
+    >(
+        envelopeOutput.data(),
+        envelopeSerialisation.BytesWritten,
+        envelopeDestination
+    );
+    assert(envelopeDeserialisation.IsSuccessful());
+    assert(envelopeDestination.Child.Value == 21U);
+    assert(envelopeDestination.Name.View() == "typed");
+
+    constexpr char ReorderedEnvelope[] =
+        "{\"value\":{\"7\":\"ordered\",\"4\":{\"9\":31}},\"$edp\":{\"type\":\"0000010000000002\",\"v\":1}}";
+    envelopeDestination.Child.Value = 77U;
+    envelopeDeserialisation = Deserialise<
+        Json,
+        RootProfile::TypedEnvelope
+    >(
+        reinterpret_cast<const std::uint8_t*>(ReorderedEnvelope),
+        sizeof(ReorderedEnvelope) - 1U,
+        envelopeDestination
+    );
+    assert(envelopeDeserialisation.IsSuccessful());
+    assert(envelopeDestination.Child.Value == 31U);
+    assert(envelopeDestination.Name.View() == "ordered");
+
+    constexpr char UnsupportedEnvelope[] =
+        "{\"$edp\":{\"v\":2,\"type\":\"0000010000000002\"},\"value\":{\"4\":{\"9\":1},\"7\":\"bad\"}}";
+    envelopeDestination.Child.Value = 77U;
+    assert(envelopeDestination.Name.Assign("before", 6U) == ESPressio::Bounded::StringAssignmentResult::Succeeded);
+    envelopeDeserialisation = Deserialise<
+        Json,
+        RootProfile::TypedEnvelope
+    >(
+        reinterpret_cast<const std::uint8_t*>(UnsupportedEnvelope),
+        sizeof(UnsupportedEnvelope) - 1U,
+        envelopeDestination
+    );
+    assert(envelopeDeserialisation.Status == DeserialisationStatus::UnsupportedEnvelopeVersion);
+    assert(envelopeDestination.Child.Value == 77U);
+    assert(envelopeDestination.Name.View() == "before");
+
+    constexpr char MismatchedEnvelope[] =
+        "{\"$edp\":{\"v\":1,\"type\":\"0000010000000003\"},\"value\":{\"4\":{\"9\":1},\"7\":\"bad\"}}";
+    envelopeDeserialisation = Deserialise<
+        Json,
+        RootProfile::TypedEnvelope
+    >(
+        reinterpret_cast<const std::uint8_t*>(MismatchedEnvelope),
+        sizeof(MismatchedEnvelope) - 1U,
+        envelopeDestination
+    );
+    assert(envelopeDeserialisation.Status == DeserialisationStatus::TypeIdentifierMismatch);
+    assert(envelopeDestination.Child.Value == 77U);
+    assert(envelopeDestination.Name.View() == "before");
+
+    constexpr char DuplicateEnvelopeMetadata[] =
+        "{\"$edp\":{\"v\":1,\"v\":1,\"type\":\"0000010000000002\"},\"value\":{\"4\":{\"9\":1},\"7\":\"bad\"}}";
+    envelopeDeserialisation = Deserialise<
+        Json,
+        RootProfile::TypedEnvelope
+    >(
+        reinterpret_cast<const std::uint8_t*>(DuplicateEnvelopeMetadata),
+        sizeof(DuplicateEnvelopeMetadata) - 1U,
+        envelopeDestination
+    );
+    assert(envelopeDeserialisation.Status == DeserialisationStatus::DuplicateField);
+    assert(envelopeDestination.Child.Value == 77U);
+
+    constexpr char MissingEnvelopeValue[] =
+        "{\"$edp\":{\"v\":1,\"type\":\"0000010000000002\"}}";
+    envelopeDeserialisation = Deserialise<
+        Json,
+        RootProfile::TypedEnvelope
+    >(
+        reinterpret_cast<const std::uint8_t*>(MissingEnvelopeValue),
+        sizeof(MissingEnvelopeValue) - 1U,
+        envelopeDestination
+    );
+    assert(envelopeDeserialisation.Status == DeserialisationStatus::MalformedRepresentation);
+    assert(envelopeDestination.Child.Value == 77U);
+
     return 0;
 }

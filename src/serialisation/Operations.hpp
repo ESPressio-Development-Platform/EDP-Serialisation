@@ -6,6 +6,7 @@
 
 #include "JsonDecoding.hpp"
 #include "JsonEncoding.hpp"
+#include "JsonEnvelope.hpp"
 #include "Profiles.hpp"
 #include "Results.hpp"
 #include "SerialisableType.hpp"
@@ -128,6 +129,10 @@ namespace ESPressio::Serialisation {
                     return DeserialisationStatus::CapacityExceeded;
                 case JsonDecodingStatus::AdaptationFailed:
                     return DeserialisationStatus::AdaptationFailed;
+                case JsonDecodingStatus::UnsupportedEnvelopeVersion:
+                    return DeserialisationStatus::UnsupportedEnvelopeVersion;
+                case JsonDecodingStatus::TypeIdentifierMismatch:
+                    return DeserialisationStatus::TypeIdentifierMismatch;
             }
 
             return DeserialisationStatus::MalformedRepresentation;
@@ -145,8 +150,8 @@ namespace ESPressio::Serialisation {
                 "This implementation checkpoint currently provides decoding only for the Json codec"
             );
             static_assert(
-                TRootProfile == RootProfile::KnownTypeBody,
-                "This implementation checkpoint currently provides decoding only for RootProfile::KnownTypeBody"
+                TRootProfile == RootProfile::KnownTypeBody || TRootProfile == RootProfile::TypedEnvelope,
+                "JSON decoding supports only the declared KnownTypeBody and TypedEnvelope root profiles"
             );
             static_assert(
                 TFieldProfile == FieldProfile::Numeric,
@@ -166,8 +171,8 @@ namespace ESPressio::Serialisation {
                 "This implementation checkpoint currently provides encoding only for the Json codec"
             );
             static_assert(
-                TRootProfile == RootProfile::KnownTypeBody,
-                "This implementation checkpoint currently provides encoding only for RootProfile::KnownTypeBody"
+                TRootProfile == RootProfile::KnownTypeBody || TRootProfile == RootProfile::TypedEnvelope,
+                "JSON encoding supports only the declared KnownTypeBody and TypedEnvelope root profiles"
             );
             static_assert(
                 TFieldProfile == FieldProfile::Numeric,
@@ -179,8 +184,8 @@ namespace ESPressio::Serialisation {
 
     /// Validates and measures one exact canonical encoded representation without retaining output bytes.
     ///
-    /// The currently implemented encoding profile is Json + KnownTypeBody + Numeric. Other compile-time
-    /// profile selections fail with focused diagnostics until their corresponding implementation slices land.
+    /// The implemented JSON Numeric Field profile supports both KnownTypeBody and explicit TypedEnvelope roots.
+    /// Other codec/Field-profile selections fail with focused diagnostics until their implementation slices land.
     ///
     /// @tparam TCodec Compile-time codec tag.
     /// @tparam TRootProfile Compile-time root profile.
@@ -203,13 +208,30 @@ namespace ESPressio::Serialisation {
             TFieldProfile
         >();
 
+        if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
+            static_assert(
+                System::IdentifiedType<TValue>,
+                "RootProfile::TypedEnvelope requires a root Type satisfying System::IdentifiedType"
+            );
+        }
+
         Detail::JsonCountingSink sink{};
         Diagnostic diagnostic{};
-        const auto status = Detail::EncodeJsonValue(
-            sink,
-            value,
-            diagnostic
-        );
+        const auto status = [&]() noexcept {
+            if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
+                return Detail::EncodeJsonTypedEnvelope(
+                    sink,
+                    value,
+                    diagnostic
+                );
+            } else {
+                return Detail::EncodeJsonValue(
+                    sink,
+                    value,
+                    diagnostic
+                );
+            }
+        }();
         const auto publicStatus = Detail::ToMeasurementStatus(status);
 
         return {
@@ -293,11 +315,21 @@ namespace ESPressio::Serialisation {
             capacity
         };
         Diagnostic diagnostic{};
-        const auto status = Detail::EncodeJsonValue(
-            sink,
-            value,
-            diagnostic
-        );
+        const auto status = [&]() noexcept {
+            if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
+                return Detail::EncodeJsonTypedEnvelope(
+                    sink,
+                    value,
+                    diagnostic
+                );
+            } else {
+                return Detail::EncodeJsonValue(
+                    sink,
+                    value,
+                    diagnostic
+                );
+            }
+        }();
 
         if (status != Detail::JsonEncodingStatus::Succeeded) {
             return {
@@ -322,8 +354,8 @@ namespace ESPressio::Serialisation {
     /// after the first pass succeeds does it replay the same bytes to populate the destination. Canonical reverse
     /// adapters must therefore remain deterministic for an identical surrogate value throughout one call.
     ///
-    /// The currently implemented decoding profile is Json + KnownTypeBody + Numeric. Other compile-time profile
-    /// selections fail with focused diagnostics until their corresponding implementation slices land.
+    /// The implemented JSON Numeric Field profile supports both KnownTypeBody and explicit TypedEnvelope roots.
+    /// Other codec/Field-profile selections fail with focused diagnostics until their implementation slices land.
     ///
     /// @tparam TCodec Compile-time codec tag.
     /// @tparam TRootProfile Compile-time root profile.
@@ -368,17 +400,39 @@ namespace ESPressio::Serialisation {
         };
         Detail::JsonSkipState validationSkipState{};
         Diagnostic validationDiagnostic{};
-        const auto validationStatus = Detail::DecodeJsonValue<
-            false,
-            TStrictness,
-            TParserLimits
-        >(
-            validationCursor,
-            &destination,
-            0U,
-            validationSkipState,
-            validationDiagnostic
-        );
+        if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
+            static_assert(
+                System::IdentifiedType<TValue>,
+                "RootProfile::TypedEnvelope requires a root Type satisfying System::IdentifiedType"
+            );
+        }
+
+        const auto validationStatus = [&]() noexcept {
+            if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
+                return Detail::DecodeJsonTypedEnvelope<
+                    false,
+                    TStrictness,
+                    TParserLimits
+                >(
+                    validationCursor,
+                    &destination,
+                    validationSkipState,
+                    validationDiagnostic
+                );
+            } else {
+                return Detail::DecodeJsonValue<
+                    false,
+                    TStrictness,
+                    TParserLimits
+                >(
+                    validationCursor,
+                    &destination,
+                    0U,
+                    validationSkipState,
+                    validationDiagnostic
+                );
+            }
+        }();
 
         if (validationStatus != Detail::JsonDecodingStatus::Succeeded) {
             return {
@@ -404,17 +458,32 @@ namespace ESPressio::Serialisation {
         };
         Detail::JsonSkipState populationSkipState{};
         Diagnostic populationDiagnostic{};
-        const auto populationStatus = Detail::DecodeJsonValue<
-            true,
-            TStrictness,
-            TParserLimits
-        >(
-            populationCursor,
-            &destination,
-            0U,
-            populationSkipState,
-            populationDiagnostic
-        );
+        const auto populationStatus = [&]() noexcept {
+            if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
+                return Detail::DecodeJsonTypedEnvelope<
+                    true,
+                    TStrictness,
+                    TParserLimits
+                >(
+                    populationCursor,
+                    &destination,
+                    populationSkipState,
+                    populationDiagnostic
+                );
+            } else {
+                return Detail::DecodeJsonValue<
+                    true,
+                    TStrictness,
+                    TParserLimits
+                >(
+                    populationCursor,
+                    &destination,
+                    0U,
+                    populationSkipState,
+                    populationDiagnostic
+                );
+            }
+        }();
 
         if (populationStatus != Detail::JsonDecodingStatus::Succeeded) {
             return {

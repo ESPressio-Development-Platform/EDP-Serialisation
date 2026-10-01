@@ -4,13 +4,13 @@
 **Public classification:** PUBLIC OPERATION API
 **Detail classification:** PRIVATE IMPLEMENTATION
 
-This header exposes JSON Numeric/Known-Type `Measure`, `Serialise`, and transactional `Deserialise`, and maps private codec outcomes into the public operation-specific result families.
+This header exposes JSON Numeric `Measure`, `Serialise`, and transactional `Deserialise` for Known-Type Body and Typed Envelope roots, and maps private codec outcomes into the public operation-specific result families.
 
 ## `Measure<TCodec, TRootProfile, TFieldProfile, TValue>(value)`
 
 PUBLIC API. `TCodec` selects the compile-time codec; `TRootProfile` defaults to `KnownTypeBody`; `TFieldProfile` defaults to `Numeric`; `TValue` must satisfy `SerialisableType`.
 
-The implemented combination is currently `Json + KnownTypeBody + Numeric`. Other profile selections are rejected at compile time. The function traverses the complete source through `JsonCountingSink`, validates all represented values/adaptations, and returns exact `RequiredBytes` only on success. It allocates no output buffer and mutates no source state itself.
+The implemented combinations are `Json + Numeric` with either `KnownTypeBody` or `TypedEnvelope`. Typed Envelope additionally requires `System::IdentifiedType<T>` and measures canonical root metadata plus the same body traversal. LocalisedText/CBOR selections remain compile-time rejected. The function validates all represented values/adaptations and returns exact `RequiredBytes` only on success.
 
 ## `Serialise<TCodec, TRootProfile, TFieldProfile, TValue>(value, output, capacity)`
 
@@ -40,7 +40,7 @@ PRIVATE IMPLEMENTATION constexpr mapper used when Serialise preflight fails. It 
 
 ## `Detail::ValidateImplementedEncodingProfile<TCodec, TRootProfile, TFieldProfile>()`
 
-PRIVATE IMPLEMENTATION consteval profile gate. `TCodec`, `TRootProfile`, and `TFieldProfile` are compile-time selection parameters. It currently requires exact `Json`, `KnownTypeBody`, and `Numeric`; pending combinations fail with focused `static_assert` diagnostics rather than runtime error/fallback state.
+PRIVATE IMPLEMENTATION consteval profile gate. `TCodec`, `TRootProfile`, and `TFieldProfile` are compile-time selection parameters. It currently requires exact `Json`, `Numeric`, and either `KnownTypeBody` or `TypedEnvelope`; pending LocalisedText/CBOR combinations fail with focused `static_assert` diagnostics rather than runtime error/fallback state.
 
 ## Validation relationships
 
@@ -60,3 +60,7 @@ PRIVATE IMPLEMENTATION constexpr mapper preserving decoder failure distinctions 
 ## `Detail::ValidateImplementedDecodingProfile<TCodec,TRootProfile,TFieldProfile>()`
 
 PRIVATE IMPLEMENTATION consteval profile gate. It currently permits only exact `Json`, `KnownTypeBody`, and `Numeric`; unsupported profile execution remains a compile-time error rather than runtime fallback.
+
+## Typed Envelope dispatch
+
+For `RootProfile::TypedEnvelope`, all three public operations statically require `System::IdentifiedType<TValue>`. Measure/Serialise delegate to `EncodeJsonTypedEnvelope`; Deserialise delegates each replay pass to `DecodeJsonTypedEnvelope`. Known-Type Body continues to delegate directly to the body encoder/decoder.

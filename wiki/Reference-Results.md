@@ -80,4 +80,4 @@ Fixed-size common context value; it owns no path string/tree and performs no all
 - `Detail` — bounded diagnostic context.
 - `IsSuccessful()` — pure predicate for `Succeeded`.
 
-These Types are the stable operation-specific vocabulary returned by the implemented JSON Numeric/Known-Type `Measure`, `Serialise`, and `Deserialise` operations. Status values reserved for Typed Envelope, LocalisedText, or later codecs remain part of the common V1 result contract before those profile slices are implemented.
+These Types are the stable operation-specific vocabulary returned by the implemented JSON Numeric `Measure`, `Serialise`, and `Deserialise` operations. `UnsupportedEnvelopeVersion` and `TypeIdentifierMismatch` are now active Typed Envelope outcomes; LocalisedText/later-codec statuses remain reserved until those slices are implemented.

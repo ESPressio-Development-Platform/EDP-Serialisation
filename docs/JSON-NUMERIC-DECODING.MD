@@ -2,7 +2,7 @@
 
 This document defines V1 `Deserialise` for `Json`, `RootProfile::KnownTypeBody`, and `FieldProfile::Numeric`.
 
-The decoder consumes one complete caller-owned contiguous JSON byte range and populates an existing compile-time target Type. It performs no dynamic allocation, constructs no DOM, and performs no runtime schema lookup. Typed Envelope, LocalisedText Fields, CBOR, and non-replayable streaming input remain later implementation slices.
+The decoder consumes one complete caller-owned contiguous JSON byte range and populates an existing compile-time target Type. It performs no dynamic allocation, constructs no DOM, and performs no runtime schema lookup. The same body decoder is now reused by the implemented Typed Envelope root profile. LocalisedText Fields, CBOR, and non-replayable streaming input remain later implementation slices.
 
 ## Public operation
 
@@ -71,4 +71,4 @@ Unknown-object duplicate detection intentionally retains no dynamic key table. I
 
 ## Current non-scope
 
-This checkpoint does not implement Typed Envelope, LocalisedText Field presentation/resolution, CBOR, streaming/non-replayable input, runtime object construction, or codec autodetection.
+This body decoder does not implement LocalisedText Field presentation/resolution, CBOR, streaming/non-replayable input, runtime object construction, or codec autodetection. Typed Envelope execution is implemented as a root wrapper which delegates its `value` member to this decoder.

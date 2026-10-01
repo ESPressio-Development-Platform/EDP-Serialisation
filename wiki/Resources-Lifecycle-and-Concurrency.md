@@ -23,3 +23,5 @@ On the current Xtensa GCC/libstdc++ toolchain, first instantiation of floating `
 ## JSON decoder footprint baseline
 
 The JSON Numeric decoder demo on AI-AGENT-02 measured 304,460 bytes flash / 22,260 bytes RAM under PlatformIO Arduino and 220,953 bytes flash / 12,616 bytes RAM under PlatformIO ESP-IDF. These are complete demo-image figures, not retained parser-state sizes. The parser itself retains fixed stack/caller-owned state only; no proportional input buffer or DOM is allocated.
+
+Typed Envelope adds only fixed local metadata flags and root-identity comparison. It does not retain envelope state beyond the operation call and adds no concurrency primitive or ownership lifecycle.

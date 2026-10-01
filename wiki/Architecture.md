@@ -15,7 +15,7 @@ EDP-BoundedTypes
   bounded value storage / capacity / pairwise TypeConversionAdapter
 ```
 
-The current implementation provides the compile-time contract plus allocation-free JSON encoding and transactional replayable-input JSON decoding for Known-Type Body + Numeric Fields. Typed Envelope execution, LocalisedText Fields, and CBOR remain pending.
+The current implementation provides the compile-time contract plus allocation-free JSON encoding and transactional replayable-input JSON decoding for Numeric Fields under both Known-Type Body and explicit Typed Envelope roots. LocalisedText Fields and CBOR remain pending.
 
 ## Schema reuse
 
@@ -40,3 +40,7 @@ The two-pass encoding contract assumes the source and canonical forward adapters
 ## Dependency evolution
 
 Direct dependencies are introduced only when source consumes them. JSON caller-buffer emission now consumes EDP-Memory ByteOperations with the EDP-Platform-Portable stateless provider as its default, so both are direct alongside System and BoundedTypes. Localisation remains deferred until LocalisedText execution.
+
+## Typed Envelope root layer
+
+`RootProfile::TypedEnvelope` is deliberately a thin root-only layer around the existing body codec. Canonical JSON emits `$edp` metadata (`v`, canonical lowercase root `TypeIdentifier`) before `value`. Decode validates the complete envelope in pass one before any body population occurs in pass two. The embedded identity is checked against the compile-time target and is never used to look up or dynamically construct a Type. Nested schema values therefore remain ordinary body values with no repeated identity metadata.

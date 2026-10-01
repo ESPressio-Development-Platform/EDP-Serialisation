@@ -43,3 +43,5 @@ The ESP-IDF builds emitted the existing `esp32dev` profile warning (configured 4
 `.github/workflows/validate.yml` is the maintained reproducible workflow definition. Per current V2 policy, GitHub Actions execution is not authoritative validation evidence; AI-AGENT-02 execution is authoritative for this tranche.
 
 The JSON demo's float-instantiating builds also established the current libstdc++ flash-size cost of floating `std::to_chars`; see [Resources, Lifecycle and Concurrency](Resources-Lifecycle-and-Concurrency).
+
+The maintained `json-typed-envelope` demo is built in PlatformIO Arduino and PlatformIO ESP-IDF by the checked-in validation workflow; its Arduino IDE form is retained alongside those executable variants.

@@ -30,3 +30,5 @@ Neither tag contains a codec object, registry entry, vtable, or runtime state.
 ## `TypedEnvelopeVersion`
 
 Constant `std::uint8_t` value `1`. It versions only the EDP-Serialisation typed-envelope representation, not the library release, application schema, codec, or semantic Type.
+
+Typed Envelope execution is implemented for the JSON Numeric profile. It is available only for serialisable roots which also satisfy `System::IdentifiedType`; scalar/sequence roots without semantic identity remain Known-Type Body only.

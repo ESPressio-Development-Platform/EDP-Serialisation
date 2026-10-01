@@ -33,3 +33,5 @@ The JSON encoder layer provides:
 `Operations.hpp` maps internal outcomes to the public operation-specific result families and compile-time rejects codec/profile combinations not yet implemented. These Detail declarations are **PRIVATE IMPLEMENTATION**, not cross-repository contracts.
 
 The decoder adds immutable input cursors, number tokens, exact Unicode String parsing, strict Base64, fixed presence-bitmaps, bounded unknown-value skipping, exact duplicate-key replay, recursive value/schema population and strong reverse adaptation. See [Reference — JSON Encoding](Reference-JsonEncoding), [Reference — JSON Decoding](Reference-JsonDecoding), and [Reference — Operations](Reference-Operations).
+
+`JsonEnvelope.hpp` is **PRIVATE IMPLEMENTATION** for the explicit JSON root wrapper. It reuses JsonEncoding/JsonDecoding and does not define a second body codec.

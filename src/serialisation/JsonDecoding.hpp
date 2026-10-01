@@ -50,7 +50,11 @@ namespace ESPressio::Serialisation::Detail {
         /// Decoded bounded content exceeds the target Type capacity.
         CapacityExceeded = 12U,
         /// Canonical reverse adaptation rejected the decoded surrogate.
-        AdaptationFailed = 13U
+        AdaptationFailed = 13U,
+        /// Typed-envelope metadata uses a version not understood by V1.
+        UnsupportedEnvelopeVersion = 14U,
+        /// Typed-envelope semantic identity does not equal the compile-time target Type.
+        TypeIdentifierMismatch = 15U
     };
 
     /// Lightweight immutable cursor over caller-owned JSON input.

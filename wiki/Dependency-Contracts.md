@@ -48,3 +48,5 @@ EDP-Platform-Portable -+
 ```
 
 Foundational owners must not depend back on EDP-Serialisation. Transport, Persistence, Security, Threading, Command, Event, State and application layers are consumers above this repository rather than dependencies below it.
+
+Typed Envelope consumes `System::TypeIdentifier` through the already-direct `EDP-System` dependency. No additional dependency edge is introduced by the envelope checkpoint.

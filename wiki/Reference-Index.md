@@ -6,6 +6,7 @@
 | `src/serialisation/CanonicalRepresentation.hpp` | PUBLIC TRAIT API | [CanonicalRepresentation](Reference-CanonicalRepresentation) |
 | `src/serialisation/EnumSerialisationTraits.hpp` | PUBLIC TRAIT API | [EnumSerialisationTraits](Reference-EnumSerialisationTraits) |
 | `src/serialisation/JsonEncoding.hpp` | PRIVATE IMPLEMENTATION | [JSON Encoding](Reference-JsonEncoding) |
+| `src/serialisation/JsonEnvelope.hpp` | PRIVATE IMPLEMENTATION | [JSON Typed Envelope](Reference-JsonEnvelope) |
 | `src/serialisation/JsonDecoding.hpp` | PRIVATE IMPLEMENTATION | [JSON Decoding](Reference-JsonDecoding) |
 | `src/serialisation/Optional.hpp` | PUBLIC TYPE ALIAS | [Optional](Reference-Optional) |
 | `src/serialisation/Operations.hpp` | PUBLIC OPERATION API / PRIVATE HELPERS | [Operations](Reference-Operations) |

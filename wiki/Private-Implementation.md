@@ -12,3 +12,5 @@ Important invariants for future implementation:
 - no direct Memory or Localisation dependency is added until production source actually consumes those contracts;
 - the implemented encoder must continue using caller-owned output and bounded local temporaries;
 - the decoder must preserve transactional destination rules through complete validation before replayed population, without hiding a second object/DOM or unbounded key dictionary.
+
+- Typed Envelope implementation must remain a fixed-state root wrapper over the existing body codec and must not grow a runtime Type registry/factory.

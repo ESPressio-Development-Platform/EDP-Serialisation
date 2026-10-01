@@ -116,3 +116,5 @@ jobs:
       - run: pio run -d demos/json-numeric-encoding/PlatformIO_ESP-IDF
       - run: pio run -d demos/json-numeric-decoding/PlatformIO_Arduino
       - run: pio run -d demos/json-numeric-decoding/PlatformIO_ESP-IDF
+      - run: pio run -d demos/json-typed-envelope/PlatformIO_Arduino
+      - run: pio run -d demos/json-typed-envelope/PlatformIO_ESP-IDF

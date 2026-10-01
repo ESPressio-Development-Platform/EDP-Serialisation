@@ -1,6 +1,6 @@
 # EDP-Serialisation Dependency Graph
 
-> Baseline: 2026-10-01 — JSON Numeric/Known-Type encoding implementation. Direct dependencies reflect source-level ownership rather than relying on transitive availability.
+> Baseline: 2026-10-01 — JSON Numeric Known-Type + Typed Envelope execution. Direct dependencies reflect source-level ownership rather than relying on transitive availability.
 
 ## Library Dependency Tree
 
@@ -31,3 +31,5 @@ No dependency points from these foundational repositories back to Serialisation.
 ## Deferred direct dependency
 
 `EDP-Localisation` is not yet a direct dependency because `FieldProfile::LocalisedText` execution remains pending. It must be declared directly when production source begins consuming forward/reverse localisation contracts.
+
+Typed Envelope uses the existing direct `EDP-System` dependency for canonical root `TypeIdentifier`; this checkpoint introduces no new dependency edge.

@@ -9,7 +9,7 @@ This header implements the allocation-free parser used by the public JSON + Know
 
 ### `JsonDecodingStatus`
 
-Internal strongly typed outcome family. Values are: `Succeeded` (complete internal operation succeeded), `MalformedRepresentation` (invalid JSON grammar), `ResourceLimitExceeded` (compile-time parser limit exceeded), `UnknownField`, `DuplicateField`, `MissingRequiredField`, `TypeMismatch`, `NumericOutOfRange`, `NumericUnderflow`, `NonFiniteNumber`, `InvalidUtf8`, `InvalidBase64`, `CapacityExceeded`, and `AdaptationFailed`. `Operations.hpp` maps these into the public `DeserialisationStatus` family.
+Internal strongly typed outcome family. Values are: `Succeeded` (complete internal operation succeeded), `MalformedRepresentation` (invalid JSON grammar), `ResourceLimitExceeded` (compile-time parser limit exceeded), `UnknownField`, `DuplicateField`, `MissingRequiredField`, `TypeMismatch`, `NumericOutOfRange`, `NumericUnderflow`, `NonFiniteNumber`, `InvalidUtf8`, `InvalidBase64`, `CapacityExceeded`, `AdaptationFailed`, `UnsupportedEnvelopeVersion`, and `TypeIdentifierMismatch`. `Operations.hpp` maps these into the public `DeserialisationStatus` family.
 
 ### `JsonInputCursor`
 

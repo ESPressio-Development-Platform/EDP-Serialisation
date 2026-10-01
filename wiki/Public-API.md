@@ -2,7 +2,7 @@
 
 **Primary entry point:** `src/ESPressio_Serialisation.hpp`.
 
-The supported surface now includes the compile-time foundation plus JSON + Known-Type Body + Numeric Field encoding and transactional decoding operations. Typed Envelope, LocalisedText, and CBOR remain pending.
+The supported surface now includes the compile-time foundation plus JSON + Numeric Field encoding and transactional decoding for both Known-Type Body and Typed Envelope roots. LocalisedText and CBOR remain pending.
 
 ## Type qualification and extension
 
@@ -31,17 +31,17 @@ The supported surface now includes the compile-time foundation plus JSON + Known
 
 ## Encoding operations
 
-- `Measure<Json>(value)` validates the complete source and returns the exact canonical encoded byte count for Known-Type Body + Numeric Fields.
+- `Measure<Json>(value)` validates the complete source and returns the exact canonical encoded byte count; `RootProfile::TypedEnvelope` adds deterministic root metadata around the same Numeric body.
 - `Serialise<Json>(value, output, capacity)` performs exact preflight measurement before writing and returns `BytesWritten == 0` for invalid source, failed adaptation, null output, or insufficient capacity. Its optional compile-time ByteOperations provider parameter defaults to EDP-Platform-Portable and must satisfy the EDP-Memory provider contract.
-- The root/Field template parameters default to `KnownTypeBody` / `Numeric`; selecting an unimplemented profile currently fails at compile time rather than falling back silently.
+- The root/Field template parameters default to `KnownTypeBody` / `Numeric`. `TypedEnvelope` is implemented for identified roots; LocalisedText and CBOR selections still fail at compile time rather than falling back silently.
 
 The caller owns source/output/input/destination storage. The source and forward canonical adapters must remain observationally stable during encoding. The immutable input and reverse adapters must remain deterministic during deserialisation replay.
 
 ## Decoding operation
 
-- `Deserialise<Json, KnownTypeBody, Numeric, Strictness, ParserLimits>(input, length, destination)` performs complete validate-only pass one, rejects trailing non-whitespace, then replays the same immutable bytes to populate. `StrictnessPolicy::Exact` rejects unknown schema Fields; `IgnoreUnknownFields` structurally validates/skips them within the compile-time parser limits.
-- Successful decode reports the complete input length in `BytesConsumed`; failure reports zero consumed bytes and preserves the destination for all validated failure modes.
-- String/Bytes/sequence capacities, duplicate/missing Field rules, numeric ranges, UTF-8/Base64 and reverse canonical adapters are validated before population.
+- `Deserialise<Json, KnownTypeBody, Numeric, Strictness, ParserLimits>(...)` performs complete validate-only pass one, rejects trailing non-whitespace, then replays the same immutable bytes to populate. `StrictnessPolicy::Exact` rejects unknown schema Fields; `IgnoreUnknownFields` structurally validates/skips them within the compile-time parser limits.
+- `Deserialise<Json, TypedEnvelope, Numeric, ...>(...)` additionally requires an identified root and validates envelope version plus exact root TypeIdentifier before the population pass. Unknown versions return `UnsupportedEnvelopeVersion`; identity mismatch returns `TypeIdentifierMismatch`.
+- Successful decode reports the complete input length in `BytesConsumed`; failure reports zero consumed bytes and preserves the destination for all validated failure modes. String/Bytes/sequence capacities, duplicate/missing Field rules, numeric ranges, UTF-8/Base64 and reverse canonical adapters are validated before population.
 
 ## System identifier integration
 
