@@ -159,8 +159,15 @@ namespace ESPressio::Serialisation {
                     // be another strong Type requiring a second canonical adaptation hop.
                     return false;
                 } else if constexpr (!std::is_nothrow_default_constructible_v<NormalizedRepresentation>) {
-                    // Forward encoding must create bounded temporary storage which the existing
-                    // TypeConversionAdapter can populate without adding another construction API.
+                    // Forward encoding and reverse validation both create bounded canonical-surrogate
+                    // storage which the existing TypeConversionAdapter populates by reference.
+                    return false;
+                } else if constexpr (
+                    !std::is_nothrow_default_constructible_v<TValue> &&
+                    !std::is_nothrow_copy_constructible_v<TValue>
+                ) {
+                    // Reverse validation needs temporary semantic storage. Existing destination state can
+                    // seed that storage by nothrow copy when the semantic Type intentionally has no default.
                     return false;
                 } else if constexpr (!SerialisableTypeTrait<NormalizedRepresentation>::Value) {
                     return false;
@@ -263,6 +270,7 @@ namespace ESPressio::Serialisation {
             /// Complete V1 qualification; directly nested Optional values are intentionally rejected.
             static constexpr bool Value =
                 !IsOptional<Element>::value &&
+                std::is_nothrow_default_constructible_v<Element> &&
                 SerialisableTypeTrait<Element>::Value;
 
         };
@@ -304,8 +312,10 @@ namespace ESPressio::Serialisation {
 
             // Qualification state.
 
-            /// Complete V1 serialisability qualification for every Vector element.
-            static constexpr bool Value = SerialisableTypeTrait<NormalizedType<TValue>>::Value;
+            /// Complete V1 qualification for elements which can be activated transactionally in inline slots.
+            static constexpr bool Value =
+                std::is_nothrow_default_constructible_v<NormalizedType<TValue>> &&
+                SerialisableTypeTrait<NormalizedType<TValue>>::Value;
 
         };
 

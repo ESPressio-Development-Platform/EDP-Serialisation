@@ -1,6 +1,6 @@
 # Internal API
 
-The internal implementation surface now spans compile-time classification in `SerialisableType.hpp`, allocation-free JSON traversal/sinks in `JsonEncoding.hpp`, and public-operation/profile mapping helpers in `Operations.hpp`.
+The internal implementation surface now spans compile-time classification in `SerialisableType.hpp`, allocation-free JSON traversal/sinks in `JsonEncoding.hpp`, replayable transactional parsing in `JsonDecoding.hpp`, and public-operation/profile mapping helpers in `Operations.hpp`.
 
 These symbols are **PRIVATE IMPLEMENTATION**, not cross-repository provider contracts: no other EDP repository should compile against them. They may change without preserving public compatibility so long as `SerialisableType<T>` semantics remain intact.
 
@@ -32,4 +32,4 @@ The JSON encoder layer provides:
 
 `Operations.hpp` maps internal outcomes to the public operation-specific result families and compile-time rejects codec/profile combinations not yet implemented. These Detail declarations are **PRIVATE IMPLEMENTATION**, not cross-repository contracts.
 
-See [Reference — JSON Encoding](Reference-JsonEncoding) and [Reference — Operations](Reference-Operations).
+The decoder adds immutable input cursors, number tokens, exact Unicode String parsing, strict Base64, fixed presence-bitmaps, bounded unknown-value skipping, exact duplicate-key replay, recursive value/schema population and strong reverse adaptation. See [Reference — JSON Encoding](Reference-JsonEncoding), [Reference — JSON Decoding](Reference-JsonDecoding), and [Reference — Operations](Reference-Operations).

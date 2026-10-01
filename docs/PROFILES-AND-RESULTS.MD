@@ -1,6 +1,6 @@
 # Profiles, Limits and Result Vocabulary
 
-The compile-time vocabulary is now consumed by the first implemented operation profile: JSON + Known-Type Body + Numeric Fields encoding. Other codec/profile combinations remain pending.
+The compile-time vocabulary is now consumed by JSON + Known-Type Body + Numeric Fields encoding and transactional decoding. Other codec/profile combinations remain pending.
 
 ## Codec and profile selection
 
@@ -16,4 +16,4 @@ The compile-time vocabulary is now consumed by the first implemented operation p
 
 V2 code-convention policy deliberately prohibits one library-wide result enum. `MeasurementStatus`, `SerialisationStatus`, and `DeserialisationStatus` therefore describe only their coherent operation families. Their result structs expose relevant byte counts and a compact shared `Diagnostic` containing byte offset and optional immediate Type/Field identity.
 
-`MeasurementResult` and `SerialisationResult` are now returned by the implemented JSON Numeric/Known-Type encoding operations. `DeserialisationResult` remains reserved for the pending decode implementation.
+`MeasurementResult` and `SerialisationResult` are returned by the JSON Numeric/Known-Type encoding operations. `DeserialisationResult` is returned by the implemented transactional decoder; success reports the complete consumed input length, while failure reports zero consumed bytes plus bounded diagnostic context.

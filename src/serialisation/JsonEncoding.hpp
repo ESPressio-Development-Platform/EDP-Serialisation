@@ -307,6 +307,9 @@ namespace ESPressio::Serialisation::Detail {
         /// Indicates that the inspected Type is a Bounded::String specialization.
         static constexpr bool IsValue = true;
 
+        /// Maximum decoded UTF-8 payload bytes retained by the String.
+        static constexpr std::size_t Capacity = TCapacity;
+
     };
 
     /// Describes one bounded Bytes specialization.
@@ -329,6 +332,9 @@ namespace ESPressio::Serialisation::Detail {
 
         /// Indicates that the inspected Type is a Bounded::Bytes specialization.
         static constexpr bool IsValue = true;
+
+        /// Maximum decoded octets retained by the Bytes value.
+        static constexpr std::size_t Capacity = TCapacity;
 
     };
 
@@ -355,6 +361,9 @@ namespace ESPressio::Serialisation::Detail {
 
         /// Element Type retained by the Vector.
         using Element = TElement;
+
+        /// Maximum logical element count retained by the Vector.
+        static constexpr std::size_t Capacity = TCapacity;
 
     };
 

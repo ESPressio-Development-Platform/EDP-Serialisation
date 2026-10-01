@@ -17,3 +17,5 @@ Aggregates the focused production headers:
 - `SystemIdentifierAdapters.hpp`.
 
 It declares no symbols, retains no state, and defines no dependency ownership beyond the focused headers. Ordinary consumers reach it through `ESPressio_Serialisation.hpp`; maintainers may change aggregation order only while preserving specialization visibility needed by `SerialisableType`.
+
+The umbrella also includes `JsonDecoding.hpp`; this is private implementation exposure required by header composition, not a supported direct-consumption contract.

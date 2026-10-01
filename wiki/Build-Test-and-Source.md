@@ -4,7 +4,7 @@
 
 - `src/ESPressio_Serialisation.hpp` — repository-level public umbrella.
 - `src/serialisation/Serialisation.hpp` — internal public-header aggregator.
-- focused headers under `src/serialisation/` own traits, profiles, limits, results, Type qualification, System identifier integration, JSON encoding internals, and public operations.
+- focused headers under `src/serialisation/` own traits, profiles, limits, results, Type qualification, System identifier integration, JSON encoding/decoding internals, and public operations.
 
 The [Reference Index](Reference-Index) maps every production header to a dedicated reference page.
 
@@ -28,13 +28,15 @@ Current negative contracts prove:
 - canonical strong-Type adaptation requires both conversion directions;
 - directly nested Optional is rejected;
 - enums require explicit `EnumSerialisationTraits` certification;
-- canonical strong-Type surrogates used for generic encoding must be nothrow default-constructible.
+- canonical strong-Type surrogates used for generic encoding/decode validation must be nothrow default-constructible;
+- Optional and Bounded Vector elements must be nothrow default-constructible for transactional population;
+- adapted semantic Types must provide a nothrow default or copy construction path for validation temporaries.
 
 ## Embedded demos
 
-`demos/type-qualification` and `demos/json-numeric-encoding` both exist in all three V2-required forms. AI-AGENT-02 validated both PlatformIO variants for both demos against Arduino-ESP32 and ESP-IDF. The JSON demo instantiates floating encoding as well as String, Optional, Bytes/Base64, schema ordering, Measure and Serialise. The appliance currently has no `arduino-cli`, so the Arduino IDE `.ino` form is maintained/buildable source but did not receive a distinct Arduino-CLI execution gate in this checkpoint.
+`demos/type-qualification`, `demos/json-numeric-encoding`, and `demos/json-numeric-decoding` all exist in the three V2-required forms. AI-AGENT-02 validated both PlatformIO variants for all three demos against Arduino-ESP32 and ESP-IDF. The encoding demo instantiates floating encoding plus String, Optional, Bytes/Base64, schema ordering, Measure and Serialise. The decoding demo instantiates floating `from_chars`, UTF-8/Optional/Base64 and transactional schema population. The appliance currently has no `arduino-cli`, so the Arduino IDE `.ino` form is maintained/buildable source but did not receive a distinct Arduino-CLI execution gate in this checkpoint.
 
-The ESP-IDF build emitted the existing `esp32dev` profile warning (configured 4 MB flash vs detected 2 MB) and still linked/produced firmware successfully.
+The ESP-IDF builds emitted the existing `esp32dev` profile warning (configured 4 MB flash vs detected 2 MB) and still linked/produced firmware successfully. The new decoder demo measured 304,460 bytes flash / 22,260 bytes RAM under PlatformIO Arduino and 220,953 bytes flash / 12,616 bytes RAM under PlatformIO ESP-IDF.
 
 ## GitHub Actions
 

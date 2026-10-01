@@ -12,13 +12,13 @@ Serialisation consumes `TypeIdentifier`, `FieldIdentifier`, `TypeAuthorityIdenti
 
 **Kind:** mandatory direct package/API dependency.
 
-Serialisation consumes bounded `String`, `Bytes`, and `Vector` families plus `TypeConversionAdapter`, `IsTypeConversionAvailable`, `HasTypeConversionSuccessPredicate`, and `IsTypeConversionSuccessful`. BoundedTypes remains authoritative for bounded storage/capacity and pairwise semantic conversion.
+Serialisation encoding/decoding consumes bounded `String`, `Bytes`, and `Vector` families plus `TypeConversionAdapter`, `IsTypeConversionAvailable`, `HasTypeConversionSuccessPredicate`, and `IsTypeConversionSuccessful`. BoundedTypes remains authoritative for bounded storage/capacity and pairwise semantic conversion.
 
 ## Production dependency: EDP-Memory
 
 **Kind:** mandatory direct contract dependency.
 
-`JsonBufferSink` validates the selected provider through `Memory::Detail::ByteOperationsProviderTraits` and delegates byte-range writes to the provider's `CopyBytes`. Serialisation therefore does not implement a parallel `memcpy`/hand-written raw-copy abstraction. The provider is compile-time selected and no provider pointer/object is retained by a sink.
+JSON decode adds no new direct dependency edge. `JsonBufferSink` validates the selected provider through `Memory::Detail::ByteOperationsProviderTraits` and delegates byte-range writes to the provider's `CopyBytes`. Serialisation therefore does not implement a parallel `memcpy`/hand-written raw-copy abstraction. The provider is compile-time selected and no provider pointer/object is retained by a sink.
 
 ## Production dependency: EDP-Platform-Portable
 

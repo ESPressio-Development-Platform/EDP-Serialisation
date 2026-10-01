@@ -68,7 +68,7 @@ Fixed-size common context value; it owns no path string/tree and performs no all
 ## `SerialisationResult`
 
 - `Status` — `SerialisationStatus` operation state.
-- `RequiredBytes` — exact complete representation size, including when output is too small once implemented.
+- `RequiredBytes` — exact complete representation size, including when output is too small.
 - `BytesWritten` — committed output byte count; locked contract requires zero on failure.
 - `Detail` — bounded diagnostic context.
 - `IsSuccessful()` — pure predicate for `Succeeded`.
@@ -80,4 +80,4 @@ Fixed-size common context value; it owns no path string/tree and performs no all
 - `Detail` — bounded diagnostic context.
 - `IsSuccessful()` — pure predicate for `Succeeded`.
 
-These Types are implemented now so codec slices share stable operation-specific vocabulary; operation functions themselves are not yet present.
+These Types are the stable operation-specific vocabulary returned by the implemented JSON Numeric/Known-Type `Measure`, `Serialise`, and `Deserialise` operations. Status values reserved for Typed Envelope, LocalisedText, or later codecs remain part of the common V1 result contract before those profile slices are implemented.

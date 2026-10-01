@@ -2,7 +2,7 @@
 
 Deterministic, allocation-free, schema-driven serialisation for the ESPressio Development Platform.
 
-The library is currently in its pre-1.0 implementation tranche at version `0.1.0`. The compile-time foundation is implemented, together with the first executable codec profile: exact `Measure` and all-or-nothing `Serialise` for JSON + Known-Type Body + Numeric Fields. JSON decoding, Typed Envelope execution, LocalisedText Fields, and CBOR remain later implementation slices.
+The library is currently in its pre-1.0 implementation tranche at version `0.1.0`. The compile-time foundation is implemented together with JSON + Known-Type Body + Numeric Fields `Measure`, all-or-nothing `Serialise`, and transactional two-pass `Deserialise`. Typed Envelope execution, LocalisedText Fields, and CBOR remain later implementation slices.
 
 ## Core Guarantees
 
@@ -20,6 +20,7 @@ The library is currently in its pre-1.0 implementation tranche at version `0.1.0
 - [V1 Type Qualification](./docs/TYPE-QUALIFICATION.MD) — defines the recursive Type universe, enum certification, schema recursion, bounded containers, and strong semantic adaptation.
 - [Profiles, Limits and Results](./docs/PROFILES-AND-RESULTS.MD) — defines compile-time codec/profile vocabulary, parser resource policy, and operation-specific result families.
 - [JSON Numeric Known-Type Encoding](./docs/JSON-NUMERIC-ENCODING.MD) — defines the implemented `Measure`/`Serialise` profile, canonical wire rules, no-partial-output guarantee, and resource behavior.
+- [JSON Numeric Known-Type Decoding](./docs/JSON-NUMERIC-DECODING.MD) — defines transactional `Deserialise`, strictness, numeric/text/Base64 validation, bounded sequence population, and parser limits.
 - [Dependency Graph](./DEPENDENCY_GRAPH.MD) — records direct ownership boundaries and current transitive dependency topology.
 
 ## Implemented API
@@ -44,7 +45,8 @@ Public foundation components:
 - operation-specific `MeasurementResult`, `SerialisationResult`, and `DeserialisationResult` families;
 - canonical adapters for `System::TypeIdentifier`, `FieldIdentifier`, `TypeAuthorityIdentifier`, and `TypeLocalIdentifier`;
 - `Measure<Json>(value)` for exact canonical JSON size/validation;
-- `Serialise<Json>(value, output, capacity)` for JSON + Known-Type Body + Numeric Fields.
+- `Serialise<Json>(value, output, capacity)` for JSON + Known-Type Body + Numeric Fields;
+- `Deserialise<Json>(input, length, destination)` for transactional JSON + Known-Type Body + Numeric Fields decoding.
 
 ## Fixed-width integer note
 
@@ -56,7 +58,7 @@ Direct dependencies are `EDP-System`, `EDP-BoundedTypes`, `EDP-Memory`, and `EDP
 
 ## Demos
 
-`demos/type-qualification` demonstrates schema recursion, bounded values, enum certification, profile vocabulary, and compile-time qualification. `demos/json-numeric-encoding` demonstrates canonical Numeric Field ordering, Optional omission, floating encoding, Base64 Bytes, exact measurement and caller-buffer serialisation. Both demos are maintained in Arduino IDE, PlatformIO Arduino, and PlatformIO ESP-IDF forms.
+`demos/type-qualification` demonstrates schema recursion, bounded values, enum certification, profile vocabulary, and compile-time qualification. `demos/json-numeric-encoding` demonstrates canonical Numeric Field ordering, Optional omission, floating encoding, Base64 Bytes, exact measurement and caller-buffer serialisation. `demos/json-numeric-decoding` demonstrates schema-ID resolution, Optional omission semantics, floating decode, strict Base64 and transactional population. Every demo is maintained in Arduino IDE, PlatformIO Arduino, and PlatformIO ESP-IDF forms.
 
 ## Validation
 

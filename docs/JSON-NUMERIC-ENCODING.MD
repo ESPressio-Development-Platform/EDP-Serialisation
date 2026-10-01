@@ -74,7 +74,6 @@ The floating `std::to_chars` path has a material flash footprint on the current 
 
 This checkpoint does not implement:
 
-- JSON deserialisation;
 - `RootProfile::TypedEnvelope` execution;
 - `FieldProfile::LocalisedText` execution;
 - CBOR encoding or decoding;

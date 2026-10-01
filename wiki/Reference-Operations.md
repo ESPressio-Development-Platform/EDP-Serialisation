@@ -4,7 +4,7 @@
 **Public classification:** PUBLIC OPERATION API
 **Detail classification:** PRIVATE IMPLEMENTATION
 
-This header exposes the first executable Serialisation operations and maps the private JSON encoder outcomes into the public operation-specific result families.
+This header exposes JSON Numeric/Known-Type `Measure`, `Serialise`, and transactional `Deserialise`, and maps private codec outcomes into the public operation-specific result families.
 
 ## `Measure<TCodec, TRootProfile, TFieldProfile, TValue>(value)`
 
@@ -45,3 +45,18 @@ PRIVATE IMPLEMENTATION consteval profile gate. `TCodec`, `TRootProfile`, and `TF
 ## Validation relationships
 
 Host coverage checks exact measurement/written-size agreement, scalar/container/schema/adapter output, canonical Field ordering, Optional omission, UTF-8/Base64 behavior, invalid-source preflight, null output, insufficient-capacity preservation, and failed adaptation. PlatformIO Arduino and ESP-IDF demos instantiate the public operations on ESP32.
+
+
+## `Deserialise<TCodec,TRootProfile,TFieldProfile,TStrictness,TParserLimits,TValue>(input,length,destination)`
+
+PUBLIC API. `TCodec` is currently required to be `Json`; root/Field profiles currently require `KnownTypeBody` / `Numeric`; `TStrictness` defaults to `Exact`; `TParserLimits` defaults to `DefaultParserLimits`; `TValue` must satisfy `SerialisableType`.
+
+The operation rejects null input, validates the complete immutable input with `DecodeJsonValue<false>`, allows only trailing JSON whitespace, then replays the same bytes through `DecodeJsonValue<true>` to populate. Failures report `BytesConsumed == 0`; success reports the complete supplied length. Pass one may read existing destination state solely to seed a copy-constructible non-default strong semantic validation temporary; it does not mutate caller state.
+
+## `Detail::ToDeserialisationStatus(JsonDecodingStatus)`
+
+PRIVATE IMPLEMENTATION constexpr mapper preserving decoder failure distinctions including malformed structure, resource limits, unknown/duplicate/missing Fields, numeric failures, invalid UTF-8/Base64, bounded capacity and adaptation failure.
+
+## `Detail::ValidateImplementedDecodingProfile<TCodec,TRootProfile,TFieldProfile>()`
+
+PRIVATE IMPLEMENTATION consteval profile gate. It currently permits only exact `Json`, `KnownTypeBody`, and `Numeric`; unsupported profile execution remains a compile-time error rather than runtime fallback.

@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "JsonDecoding.hpp"
 #include "JsonEncoding.hpp"
 #include "Profiles.hpp"
 #include "Results.hpp"
@@ -88,6 +89,69 @@ namespace ESPressio::Serialisation {
             }
 
             return SerialisationStatus::ResourceLimitExceeded;
+        }
+
+
+        /// Maps one internal JSON decoder outcome to the public Deserialise outcome family.
+        ///
+        /// @param status Internal decoder outcome.
+        /// @return Equivalent public DeserialisationStatus.
+        constexpr DeserialisationStatus ToDeserialisationStatus(
+            JsonDecodingStatus status
+        ) noexcept {
+            switch (status) {
+                case JsonDecodingStatus::Succeeded:
+                    return DeserialisationStatus::Succeeded;
+                case JsonDecodingStatus::MalformedRepresentation:
+                    return DeserialisationStatus::MalformedRepresentation;
+                case JsonDecodingStatus::ResourceLimitExceeded:
+                    return DeserialisationStatus::ResourceLimitExceeded;
+                case JsonDecodingStatus::UnknownField:
+                    return DeserialisationStatus::UnknownField;
+                case JsonDecodingStatus::DuplicateField:
+                    return DeserialisationStatus::DuplicateField;
+                case JsonDecodingStatus::MissingRequiredField:
+                    return DeserialisationStatus::MissingRequiredField;
+                case JsonDecodingStatus::TypeMismatch:
+                    return DeserialisationStatus::TypeMismatch;
+                case JsonDecodingStatus::NumericOutOfRange:
+                    return DeserialisationStatus::NumericOutOfRange;
+                case JsonDecodingStatus::NumericUnderflow:
+                    return DeserialisationStatus::NumericUnderflow;
+                case JsonDecodingStatus::NonFiniteNumber:
+                    return DeserialisationStatus::NonFiniteNumber;
+                case JsonDecodingStatus::InvalidUtf8:
+                    return DeserialisationStatus::InvalidUtf8;
+                case JsonDecodingStatus::InvalidBase64:
+                    return DeserialisationStatus::InvalidBase64;
+                case JsonDecodingStatus::CapacityExceeded:
+                    return DeserialisationStatus::CapacityExceeded;
+                case JsonDecodingStatus::AdaptationFailed:
+                    return DeserialisationStatus::AdaptationFailed;
+            }
+
+            return DeserialisationStatus::MalformedRepresentation;
+        }
+
+        /// Validates that this implementation checkpoint owns the requested decoding profile.
+        ///
+        /// @tparam TCodec Compile-time codec tag.
+        /// @tparam TRootProfile Compile-time root profile.
+        /// @tparam TFieldProfile Compile-time Field-key profile.
+        template<class TCodec, RootProfile TRootProfile, FieldProfile TFieldProfile>
+        consteval void ValidateImplementedDecodingProfile() {
+            static_assert(
+                std::is_same_v<TCodec, Json>,
+                "This implementation checkpoint currently provides decoding only for the Json codec"
+            );
+            static_assert(
+                TRootProfile == RootProfile::KnownTypeBody,
+                "This implementation checkpoint currently provides decoding only for RootProfile::KnownTypeBody"
+            );
+            static_assert(
+                TFieldProfile == FieldProfile::Numeric,
+                "This implementation checkpoint currently provides decoding only for FieldProfile::Numeric"
+            );
         }
 
         /// Validates that this implementation checkpoint owns the requested encoding profile.
@@ -248,6 +312,122 @@ namespace ESPressio::Serialisation {
             SerialisationStatus::Succeeded,
             measurement.RequiredBytes,
             sink.Size(),
+            {}
+        };
+    }
+
+    /// Transactionally deserialises one complete JSON representation from caller-owned contiguous input.
+    ///
+    /// The operation first validates the complete replayable input without modifying destination state. Only
+    /// after the first pass succeeds does it replay the same bytes to populate the destination. Canonical reverse
+    /// adapters must therefore remain deterministic for an identical surrogate value throughout one call.
+    ///
+    /// The currently implemented decoding profile is Json + KnownTypeBody + Numeric. Other compile-time profile
+    /// selections fail with focused diagnostics until their corresponding implementation slices land.
+    ///
+    /// @tparam TCodec Compile-time codec tag.
+    /// @tparam TRootProfile Compile-time root profile.
+    /// @tparam TFieldProfile Compile-time Field-key profile.
+    /// @tparam TStrictness Unknown-Field handling policy.
+    /// @tparam TParserLimits Compile-time nesting and unknown-skip resource policy.
+    /// @tparam TValue Serialisable destination Type.
+    /// @param input First byte of caller-owned immutable JSON input.
+    /// @param length Number of bytes in the complete caller-owned input range.
+    /// @param destination Existing destination object populated only after complete validation succeeds.
+    /// @return Operation-specific outcome; BytesConsumed equals length only on success.
+    template<
+        class TCodec,
+        RootProfile TRootProfile = RootProfile::KnownTypeBody,
+        FieldProfile TFieldProfile = FieldProfile::Numeric,
+        StrictnessPolicy TStrictness = StrictnessPolicy::Exact,
+        class TParserLimits = DefaultParserLimits,
+        SerialisableType TValue
+    >
+    DeserialisationResult Deserialise(
+        const std::uint8_t* input,
+        std::size_t length,
+        TValue& destination
+    ) noexcept {
+        Detail::ValidateImplementedDecodingProfile<
+            TCodec,
+            TRootProfile,
+            TFieldProfile
+        >();
+
+        if (input == nullptr) {
+            return {
+                DeserialisationStatus::InvalidArgument,
+                0U,
+                {}
+            };
+        }
+
+        Detail::JsonInputCursor validationCursor{
+            input,
+            length
+        };
+        Detail::JsonSkipState validationSkipState{};
+        Diagnostic validationDiagnostic{};
+        const auto validationStatus = Detail::DecodeJsonValue<
+            false,
+            TStrictness,
+            TParserLimits
+        >(
+            validationCursor,
+            &destination,
+            0U,
+            validationSkipState,
+            validationDiagnostic
+        );
+
+        if (validationStatus != Detail::JsonDecodingStatus::Succeeded) {
+            return {
+                Detail::ToDeserialisationStatus(validationStatus),
+                0U,
+                validationDiagnostic
+            };
+        }
+
+        Detail::SkipJsonWhitespace(validationCursor);
+        if (!validationCursor.IsAtEnd()) {
+            validationDiagnostic.ByteOffset = validationCursor.Position();
+            return {
+                DeserialisationStatus::TrailingData,
+                0U,
+                validationDiagnostic
+            };
+        }
+
+        Detail::JsonInputCursor populationCursor{
+            input,
+            length
+        };
+        Detail::JsonSkipState populationSkipState{};
+        Diagnostic populationDiagnostic{};
+        const auto populationStatus = Detail::DecodeJsonValue<
+            true,
+            TStrictness,
+            TParserLimits
+        >(
+            populationCursor,
+            &destination,
+            0U,
+            populationSkipState,
+            populationDiagnostic
+        );
+
+        if (populationStatus != Detail::JsonDecodingStatus::Succeeded) {
+            return {
+                Detail::ToDeserialisationStatus(populationStatus),
+                0U,
+                populationDiagnostic
+            };
+        }
+
+        Detail::SkipJsonWhitespace(populationCursor);
+        return {
+            DeserialisationStatus::Succeeded,
+            length,
             {}
         };
     }

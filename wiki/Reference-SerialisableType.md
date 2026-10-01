@@ -73,10 +73,10 @@ PRIVATE IMPLEMENTATION recursive classifier. The primary template delegates to s
 
 - `std::array<T,N>` — value equals recursive element qualification; exact extent is retained by the Type itself.
 - native `T[N]` — same recursive element rule.
-- `std::optional<T>` — rejects `T` when it is itself Optional, otherwise recurses.
+- `std::optional<T>` — rejects nested Optional and requires a nothrow default-constructible element before recursion so an absent destination can be engaged transactionally.
 - `Bounded::String<N,Provider>` — true as an admitted bounded-text family; UTF-8 validity is runtime codec validation, not Type qualification.
 - `Bounded::Bytes<N,Provider>` — true as an admitted bounded-octet family.
-- `Bounded::Vector<T,N>` — recursive element qualification; capacity is compile-time metadata owned by BoundedTypes.
+- `Bounded::Vector<T,N>` — requires nothrow default construction plus recursive element qualification because decode activates new inline slots; capacity is compile-time metadata owned by BoundedTypes.
 
 Each specialization exposes member `Value`, the authoritative Boolean result for that exact family. The Optional specialization additionally exposes nested alias `Element`, the cv-normalized contained Type used by the direct-nesting rule.
 
@@ -97,11 +97,12 @@ PRIVATE IMPLEMENTATION consteval predicate implementing S1:
 1. `CanonicalRepresentation<TValue>::Type` must exist.
 2. Representation must not be a reference or the same normalized Type as `TValue`.
 3. Representation itself must not expose another `CanonicalRepresentation`, preventing a top-level adaptation chain.
-4. Representation must be nothrow default-constructible so generic forward encoding can provide the existing adapter with bounded target storage.
-5. Representation must recursively satisfy `SerialisableTypeTrait`; valid nested Fields/elements may independently use their own adaptations.
-6. Both BoundedTypes conversion directions must be available.
-7. Both directions must expose `HasTypeConversionSuccessPredicate`.
-8. Both adapter Types must advertise `IsNoexcept`.
+4. Representation must be nothrow default-constructible so generic conversion has bounded target storage.
+5. The semantic `TValue` must be nothrow default-constructible or nothrow copy-constructible so reverse validation can use temporary semantic storage without mutating caller state.
+6. Representation must recursively satisfy `SerialisableTypeTrait`; valid nested Fields/elements may independently use their own adaptations.
+7. Both BoundedTypes conversion directions must be available.
+8. Both directions must expose `HasTypeConversionSuccessPredicate`.
+9. Both adapter Types must advertise `IsNoexcept`.
 
 The function performs compile-time qualification only; it does not execute conversion.
 
