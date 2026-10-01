@@ -15,11 +15,11 @@ EDP-BoundedTypes
   bounded value storage / capacity / pairwise TypeConversionAdapter
 ```
 
-The current implementation provides the compile-time contract plus allocation-free JSON encoding and transactional replayable-input JSON decoding for Numeric and LocalisedText Fields under both Known-Type Body and explicit Typed Envelope roots. CBOR remains pending.
+The current implementation provides the compile-time contract plus allocation-free JSON and CBOR Numeric encoding/transactional replayable-input decoding for both Known-Type Body and explicit Typed Envelope roots. JSON also implements LocalisedText Fields.
 
 ## Schema reuse
 
-`SerialisableType<T>` never creates a second schema description. For a `System::SchemaType`, it traverses `System::ForEachField<T>()` and recursively qualifies each canonical `FieldBinding::Value`. Field declaration order is therefore schema source metadata only. The implemented Numeric JSON encoder emits schema Fields in ascending `FieldIdentifier` order by compile-time binding lookup and retains no runtime sorting registry.
+`SerialisableType<T>` never creates a second schema description. For a `System::SchemaType`, it traverses `System::ForEachField<T>()` and recursively qualifies each canonical `FieldBinding::Value`. Field declaration order is therefore schema source metadata only. The implemented Numeric JSON and CBOR encoders emit schema Fields in ascending `FieldIdentifier` order by compile-time binding lookup and retain no runtime sorting registry.
 
 ## Strong semantic adaptation
 
@@ -33,19 +33,24 @@ Enum serialisability is explicit through `EnumSerialisationTraits<TEnum>::Underl
 
 ## State and allocation
 
-The implementation retains no global or per-codec state, schema registry, DOM, allocator, provider state, cache or mutable singleton. `Measure` uses a zero-storage counting sink; `Serialise` writes directly into caller-owned contiguous bytes only after successful preflight validation/measurement. Public result values remain fixed-size value objects. `Deserialise` retains only parser cursors, fixed token/skip state and a 32-byte schema presence bitmap while validating/replaying caller-owned input.
+The implementation retains no global or per-codec state, schema registry, DOM, allocator, provider state, cache or mutable singleton. `Measure` uses one shared zero-storage codec-neutral counting sink; JSON and CBOR `Serialise` write directly into caller-owned contiguous bytes only after successful preflight validation/measurement. Public result values remain fixed-size value objects. `Deserialise` retains only parser cursors, fixed token/skip state and a 32-byte schema presence bitmap while validating/replaying caller-owned input.
 
 The two-pass encoding contract assumes the source and canonical forward adapters are observationally stable for the duration of one call. Deserialisation validates the complete immutable input before replaying it to populate; reverse adapters must be deterministic for the same surrogate so validation and population cannot diverge.
 
 ## Dependency evolution
 
-Direct dependencies are introduced only when source consumes them. JSON caller-buffer emission now consumes EDP-Memory ByteOperations with the EDP-Platform-Portable stateless provider as its default, so both are direct alongside System and BoundedTypes. LocalisedText execution now consumes EDP-Localisation directly; Serialisation delegates language validation/fallback and forward/reverse presentation identity to that repository and retains no language-pack representation.
+Direct dependencies are introduced only when source consumes them. JSON and CBOR caller-buffer emission consume the shared EDP-Memory ByteOperations contract with the EDP-Platform-Portable stateless provider as the default, so both are direct alongside System and BoundedTypes. LocalisedText execution now consumes EDP-Localisation directly; Serialisation delegates language validation/fallback and forward/reverse presentation identity to that repository and retains no language-pack representation.
 
 ## Typed Envelope root layer
 
-`RootProfile::TypedEnvelope` is deliberately a thin root-only layer around the existing body codec. Canonical JSON emits `$edp` metadata (`v`, canonical lowercase root `TypeIdentifier`) before `value`. Decode validates the complete envelope in pass one before any body population occurs in pass two. The embedded identity is checked against the compile-time target and is never used to look up or dynamically construct a Type. Nested schema values therefore remain ordinary body values with no repeated identity metadata.
+`RootProfile::TypedEnvelope` is deliberately a thin root-only layer around the selected body codec. Canonical JSON emits `$edp` metadata (`v`, canonical lowercase root `TypeIdentifier`) before `value`; canonical CBOR emits definite `[1, h'<8 identifier bytes>', <body>]`. Decode validates the complete selected envelope in pass one before any body population occurs in pass two. The embedded identity is checked against the compile-time target and is never used to look up or dynamically construct a Type. Nested schema values therefore remain ordinary body values with no repeated identity metadata.
 
 
 ## LocalisedText Field layer
 
 The shared JSON scalar/container/schema codec is Field-policy aware. Numeric Fields use a zero-state policy. LocalisedText binds a caller-owned Resolver, language context and bounded text scratch. Schema encoding emits reserved RFC5646 metadata first and resolves each Field key through EDP-Localisation; schema decoding discovers metadata by replay, applies embedded > caller > all-language priority, then reverse-resolves names to canonical FieldIdentifiers before dispatching through the same value decoder. This avoids a parallel codec, Localisation registry, DOM or retained dictionary.
+
+
+## CBOR Numeric layer
+
+CBOR Numeric reuses the same schema/adaptation universe and the shared codec-neutral output sinks. It emits definite-length arrays/maps, unsigned numeric FieldIdentifier keys in ascending order, native major type 0/1 integers with shortest legal heads, exact binary32/binary64 widths, text/byte strings with no cross-category coercion, and CBOR null for disengaged root/sequence Optional values. The decoder rejects indefinite containers and non-canonical heads, applies the same fixed 256-bit schema presence map and ParserLimits, and uses the same two-pass transactional destination rule as JSON.

@@ -130,3 +130,5 @@ jobs:
       - run: pio run -d demos/json-typed-envelope/PlatformIO_ESP-IDF
       - run: pio run -d demos/json-localised-text/PlatformIO_Arduino
       - run: pio run -d demos/json-localised-text/PlatformIO_ESP-IDF
+      - run: pio run -d demos/cbor-numeric/PlatformIO_Arduino
+      - run: pio run -d demos/cbor-numeric/PlatformIO_ESP-IDF

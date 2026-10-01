@@ -1,8 +1,8 @@
 # Private Implementation
 
-EDP-Serialisation has **no retained runtime private object state**. The implementation is header-only compile-time classification plus stack/caller-owned JSON traversal state, constexpr identifier adapters, and fixed-size result values.
+EDP-Serialisation has **no retained runtime private object state**. The implementation is header-only compile-time classification plus stack/caller-owned JSON/CBOR traversal state, constexpr identifier adapters, and fixed-size result values.
 
-Private implementation includes the `SerialisableType` classifier machinery plus JSON sinks, UTF-8/Base64/numeric encoding helpers, replayable JSON parser state, numeric conversion, duplicate-key replay, schema presence/Field dispatch, LocalisedText language/key resolution policy, and operation-status mapping. It retains no registry, cache, allocator, schema copy, provider object, global mutable state, or background lifecycle.
+Private implementation includes the `SerialisableType` classifier machinery plus shared output sinks, JSON UTF-8/Base64/numeric helpers, canonical CBOR head/scalar/container helpers, replayable JSON/CBOR parser state, numeric conversion, duplicate-key replay, schema presence/Field dispatch, LocalisedText language/key resolution policy, and operation-status mapping. It retains no registry, cache, allocator, schema copy, provider object, global mutable state, or background lifecycle.
 
 Important invariants for future implementation:
 
@@ -13,4 +13,4 @@ Important invariants for future implementation:
 - the implemented encoder must continue using caller-owned output and bounded local temporaries;
 - the decoder must preserve transactional destination rules through complete validation before replayed population, without hiding a second object/DOM or unbounded key dictionary.
 
-- Typed Envelope implementation must remain a fixed-state root wrapper over the existing body codec and must not grow a runtime Type registry/factory.
+- Typed Envelope implementation must remain a fixed-state root wrapper over the selected JSON/CBOR body codec and must not grow a runtime Type registry/factory.

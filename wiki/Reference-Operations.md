@@ -4,13 +4,13 @@
 **Public classification:** PUBLIC OPERATION API
 **Detail classification:** PRIVATE IMPLEMENTATION
 
-This header exposes JSON Numeric and LocalisedText `Measure`, `Serialise`, and transactional `Deserialise` for Known-Type Body and Typed Envelope roots, and maps private codec outcomes into the public operation-specific result families.
+This header exposes JSON/CBOR Numeric plus JSON LocalisedText `Measure`, `Serialise`, and transactional `Deserialise` for Known-Type Body and Typed Envelope roots, and maps private codec outcomes into the public operation-specific result families.
 
 ## `Measure<TCodec, TRootProfile, TFieldProfile, TValue>(value)`
 
 PUBLIC API. `TCodec` selects the compile-time codec; `TRootProfile` defaults to `KnownTypeBody`; `TFieldProfile` defaults to `Numeric`; `TValue` must satisfy `SerialisableType`.
 
-The implemented combinations are `Json + Numeric` with either `KnownTypeBody` or `TypedEnvelope`. Typed Envelope additionally requires `System::IdentifiedType<T>` and measures canonical root metadata plus the same body traversal. The parameter-only overload remains Numeric; dedicated overloads implement LocalisedText. CBOR selections remain compile-time rejected. The function validates all represented values/adaptations and returns exact `RequiredBytes` only on success.
+The parameter-only operation family implements `Json + Numeric` and `Cbor + Numeric` with either `KnownTypeBody` or `TypedEnvelope`. Typed Envelope additionally requires `System::IdentifiedType<T>` and measures codec-specific canonical root metadata plus the same body traversal. Dedicated overloads implement JSON LocalisedText. The function validates all represented values/adaptations and returns exact `RequiredBytes` only on success.
 
 ## `Serialise<TCodec, TRootProfile, TFieldProfile, TValue>(value, output, capacity)`
 
@@ -40,7 +40,7 @@ PRIVATE IMPLEMENTATION constexpr mapper used when Serialise preflight fails. It 
 
 ## `Detail::ValidateImplementedEncodingProfile<TCodec, TRootProfile, TFieldProfile>()`
 
-PRIVATE IMPLEMENTATION consteval profile gate. `TCodec`, `TRootProfile`, and `TFieldProfile` are compile-time selection parameters. It currently requires exact `Json`, `Numeric`, and either `KnownTypeBody` or `TypedEnvelope`; pending CBOR combinations fail with focused `static_assert` diagnostics rather than runtime error/fallback state.
+PRIVATE IMPLEMENTATION consteval profile gate. `TCodec`, `TRootProfile`, and `TFieldProfile` are compile-time selection parameters. It permits `Json` or `Cbor` with `Numeric` and either `KnownTypeBody` or `TypedEnvelope`; LocalisedText uses a separate JSON-only gate.
 
 ## Validation relationships
 
@@ -49,9 +49,9 @@ Host coverage checks exact measurement/written-size agreement, scalar/container/
 
 ## `Deserialise<TCodec,TRootProfile,TFieldProfile,TStrictness,TParserLimits,TValue>(input,length,destination)`
 
-PUBLIC API. `TCodec` is currently required to be `Json`; the parameter-only overload defaults to `KnownTypeBody` / `Numeric`; `TStrictness` defaults to `Exact`; `TParserLimits` defaults to `DefaultParserLimits`; `TValue` must satisfy `SerialisableType`.
+PUBLIC API. `TCodec` may be `Json` or `Cbor` for the Numeric operation family; the parameter-only overload defaults to `KnownTypeBody` / `Numeric`; `TStrictness` defaults to `Exact`; `TParserLimits` defaults to `DefaultParserLimits`; `TValue` must satisfy `SerialisableType`.
 
-The operation rejects null input, validates the complete immutable input with `DecodeJsonValue<false>`, allows only trailing JSON whitespace, then replays the same bytes through `DecodeJsonValue<true>` to populate. Failures report `BytesConsumed == 0`; success reports the complete supplied length. Pass one may read existing destination state solely to seed a copy-constructible non-default strong semantic validation temporary; it does not mutate caller state.
+The operation rejects null input and dispatches to the selected codec's complete validate-only pass before replayed population. JSON permits only trailing JSON whitespace; CBOR requires exact byte exhaustion. Failures report `BytesConsumed == 0`; success reports the complete supplied length. Pass one may read existing destination state solely to seed a copy-constructible non-default strong semantic validation temporary; it does not mutate caller state.
 
 ## `Detail::ToDeserialisationStatus(JsonDecodingStatus)`
 
@@ -63,8 +63,12 @@ PRIVATE IMPLEMENTATION consteval profile gate. Numeric and LocalisedText each ha
 
 ## Typed Envelope dispatch
 
-For `RootProfile::TypedEnvelope`, all three public operations statically require `System::IdentifiedType<TValue>`. Measure/Serialise delegate to `EncodeJsonTypedEnvelope`; Deserialise delegates each replay pass to `DecodeJsonTypedEnvelope`. Known-Type Body continues to delegate directly to the body encoder/decoder.
+For `RootProfile::TypedEnvelope`, all three public operations statically require `System::IdentifiedType<TValue>`. JSON dispatches to `Encode/DecodeJsonTypedEnvelope`; CBOR dispatches to `Encode/DecodeCborTypedEnvelope`. Known-Type Body delegates directly to the selected codec's body traversal.
 
+
+## CBOR private mappings
+
+`Detail::ToMeasurementStatus(CborEncodingStatus)`, `ToSerialisationStatus(CborEncodingStatus)`, and `ToDeserialisationStatus(CborDecodingStatus)` preserve the CBOR internal failure distinctions in the existing operation-specific public result families. `Detail::DeserialiseCbor` owns the two-pass CBOR validation/trailing-byte/population orchestration.
 
 ## LocalisedText overloads
 

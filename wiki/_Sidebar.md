@@ -14,3 +14,8 @@
 - [Reference Index](Reference-Index)
 
 - [JSON LocalisedText Reference](Reference-JsonLocalisedText)
+
+- [Encoding Sinks Reference](Reference-EncodingSinks)
+- [CBOR Encoding Reference](Reference-CborEncoding)
+- [CBOR Decoding Reference](Reference-CborDecoding)
+- [CBOR Typed Envelope Reference](Reference-CborEnvelope)

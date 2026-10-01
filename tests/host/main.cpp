@@ -769,7 +769,61 @@ ESPressio::Serialisation::DeserialisationResult DecodeJsonLiteral(
     );
 }
 
-/// Runs the complete Serialisation foundation, JSON encoding, and JSON decoding host contract suite.
+/// Verifies exact deterministic CBOR measurement and caller-buffer output.
+///
+/// @tparam TValue Serialisable source Type.
+/// @tparam TExpectedSize Exact expected CBOR byte count.
+/// @param value Source value.
+/// @param expected Exact canonical CBOR bytes.
+template<class TValue, std::size_t TExpectedSize>
+void ExpectCanonicalCbor(
+    const TValue& value,
+    const std::array<std::uint8_t, TExpectedSize>& expected
+) noexcept {
+    const auto measurement = ESPressio::Serialisation::Measure<
+        ESPressio::Serialisation::Cbor
+    >(value);
+    assert(measurement.IsSuccessful());
+    assert(measurement.RequiredBytes == expected.size());
+
+    std::array<std::uint8_t, 512U> output{};
+    const auto result = ESPressio::Serialisation::Serialise<
+        ESPressio::Serialisation::Cbor
+    >(
+        value,
+        output.data(),
+        output.size()
+    );
+    assert(result.IsSuccessful());
+    assert(result.RequiredBytes == expected.size());
+    assert(result.BytesWritten == expected.size());
+    for (std::size_t index = 0U; index < expected.size(); ++index) {
+        assert(output[index] == expected[index]);
+    }
+}
+
+/// Deserialises one fixed CBOR byte sequence through the default Known-Type/Numeric profile.
+///
+/// @tparam TValue Serialisable destination Type.
+/// @tparam TInputSize Fixed CBOR byte count.
+/// @param input Exact caller-owned CBOR bytes.
+/// @param destination Existing destination object.
+/// @return Complete operation-specific deserialisation result.
+template<class TValue, std::size_t TInputSize>
+ESPressio::Serialisation::DeserialisationResult DecodeCborBytes(
+    const std::array<std::uint8_t, TInputSize>& input,
+    TValue& destination
+) noexcept {
+    return ESPressio::Serialisation::Deserialise<
+        ESPressio::Serialisation::Cbor
+    >(
+        input.data(),
+        input.size(),
+        destination
+    );
+}
+
+/// Runs the complete Serialisation foundation plus JSON/CBOR encoding and decoding host contract suite.
 int main() {
     using namespace ESPressio::Serialisation;
 
@@ -1940,6 +1994,521 @@ int main() {
         scratchA
     );
     assert(ambiguousDecode.Status == DeserialisationStatus::FieldNameAmbiguous);
+
+
+    // Deterministic CBOR Numeric profile contracts.
+
+    ExpectCanonicalCbor(
+        static_cast<std::uint8_t>(23U),
+        std::array<std::uint8_t, 1U>{0x17U}
+    );
+    ExpectCanonicalCbor(
+        static_cast<std::uint8_t>(24U),
+        std::array<std::uint8_t, 2U>{0x18U, 0x18U}
+    );
+    ExpectCanonicalCbor(
+        static_cast<std::int16_t>(-25),
+        std::array<std::uint8_t, 2U>{0x38U, 0x18U}
+    );
+    ExpectCanonicalCbor(
+        1.5F,
+        std::array<std::uint8_t, 5U>{0xFAU, 0x3FU, 0xC0U, 0x00U, 0x00U}
+    );
+    ExpectCanonicalCbor(
+        1.5,
+        std::array<std::uint8_t, 9U>{
+            0xFBU, 0x3FU, 0xF8U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U
+        }
+    );
+    ExpectCanonicalCbor(
+        -0.0F,
+        std::array<std::uint8_t, 5U>{0xFAU, 0x80U, 0x00U, 0x00U, 0x00U}
+    );
+
+    ESPressio::Bounded::String<8U> cborText{};
+    assert(
+        cborText.Assign("A") == ESPressio::Bounded::StringAssignmentResult::Succeeded
+    );
+    ExpectCanonicalCbor(
+        cborText,
+        std::array<std::uint8_t, 2U>{0x61U, 0x41U}
+    );
+
+    ESPressio::Bounded::Bytes<4U> cborBytes{};
+    const std::uint8_t cborByteSource[]{0x01U, 0xFEU};
+    assert(
+        cborBytes.Assign(
+            cborByteSource,
+            sizeof(cborByteSource)
+        ) == ESPressio::Bounded::BytesAssignmentResult::Succeeded
+    );
+    ExpectCanonicalCbor(
+        cborBytes,
+        std::array<std::uint8_t, 3U>{0x42U, 0x01U, 0xFEU}
+    );
+
+    const std::array<std::uint16_t, 3U> cborFixedArray{1U, 24U, 256U};
+    ExpectCanonicalCbor(
+        cborFixedArray,
+        std::array<std::uint8_t, 7U>{
+            0x83U, 0x01U, 0x18U, 0x18U, 0x19U, 0x01U, 0x00U
+        }
+    );
+
+    TestSupport::Payload cborPayload{};
+    assert(
+        cborPayload.Name.Assign("A") ==
+        ESPressio::Bounded::StringAssignmentResult::Succeeded
+    );
+    cborPayload.Child.Value = 11U;
+    ExpectCanonicalCbor(
+        cborPayload,
+        std::array<std::uint8_t, 8U>{
+            0xA2U,
+            0x04U, 0xA1U, 0x09U, 0x0BU,
+            0x07U, 0x61U, 0x41U
+        }
+    );
+    cborPayload.Count = 24U;
+    ExpectCanonicalCbor(
+        cborPayload,
+        std::array<std::uint8_t, 11U>{
+            0xA3U,
+            0x02U, 0x18U, 0x18U,
+            0x04U, 0xA1U, 0x09U, 0x0BU,
+            0x07U, 0x61U, 0x41U
+        }
+    );
+
+    ExpectCanonicalCbor(
+        TestSupport::BoundaryFields{},
+        std::array<std::uint8_t, 6U>{
+            0xA2U, 0x00U, 0x01U, 0x18U, 0xFFU, 0x02U
+        }
+    );
+    ExpectCanonicalCbor(
+        TestSupport::StrongCounter{77U},
+        std::array<std::uint8_t, 2U>{0x18U, 0x4DU}
+    );
+
+    // CBOR preflight failures preserve caller output exactly.
+
+    std::array<std::uint8_t, 32U> cborUntouched{};
+    cborUntouched.fill(0xA5U);
+    const auto cborInfiniteMeasurement = Measure<Cbor>(
+        std::numeric_limits<double>::infinity()
+    );
+    assert(cborInfiniteMeasurement.Status == MeasurementStatus::NonFiniteNumber);
+    const auto cborInfiniteSerialisation = Serialise<Cbor>(
+        std::numeric_limits<double>::infinity(),
+        cborUntouched.data(),
+        cborUntouched.size()
+    );
+    assert(cborInfiniteSerialisation.Status == SerialisationStatus::NonFiniteNumber);
+    assert(cborInfiniteSerialisation.BytesWritten == 0U);
+    for (const auto byte : cborUntouched) { assert(byte == 0xA5U); }
+
+    cborUntouched.fill(0x5AU);
+    const auto cborRejectedSerialisation = Serialise<Cbor>(
+        TestSupport::FallibleStrong{99U},
+        cborUntouched.data(),
+        cborUntouched.size()
+    );
+    assert(cborRejectedSerialisation.Status == SerialisationStatus::AdaptationFailed);
+    assert(cborRejectedSerialisation.BytesWritten == 0U);
+    for (const auto byte : cborUntouched) { assert(byte == 0x5AU); }
+
+    const auto cborPayloadMeasurement = Measure<Cbor>(cborPayload);
+    assert(cborPayloadMeasurement.IsSuccessful());
+    std::array<std::uint8_t, 2U> cborTooSmall{0xCCU, 0xCCU};
+    const auto cborInsufficient = Serialise<Cbor>(
+        cborPayload,
+        cborTooSmall.data(),
+        cborTooSmall.size()
+    );
+    assert(cborInsufficient.Status == SerialisationStatus::OutputBufferTooSmall);
+    assert(cborInsufficient.RequiredBytes == cborPayloadMeasurement.RequiredBytes);
+    assert(cborInsufficient.BytesWritten == 0U);
+    assert(cborTooSmall[0U] == 0xCCU && cborTooSmall[1U] == 0xCCU);
+
+    // CBOR exact-category/canonical decoding and transactionality.
+
+    std::uint16_t cborUnsigned = 77U;
+    auto cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 2U>{0x18U, 0x01U},
+        cborUnsigned
+    );
+    assert(cborDecode.Status == DeserialisationStatus::MalformedRepresentation);
+    assert(cborUnsigned == 77U);
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 2U>{0x18U, 0x18U},
+        cborUnsigned
+    );
+    assert(cborDecode.IsSuccessful() && cborUnsigned == 24U);
+
+    std::uint8_t cborUnsigned8 = 7U;
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 3U>{0x19U, 0x01U, 0x00U},
+        cborUnsigned8
+    );
+    assert(cborDecode.Status == DeserialisationStatus::NumericOutOfRange);
+    assert(cborUnsigned8 == 7U);
+
+    bool cborBool = false;
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 1U>{0x01U},
+        cborBool
+    );
+    assert(cborDecode.Status == DeserialisationStatus::TypeMismatch);
+    assert(!cborBool);
+
+    TestSupport::Mode cborMode = TestSupport::Mode::Off;
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 1U>{0x07U},
+        cborMode
+    );
+    assert(cborDecode.IsSuccessful());
+    assert(static_cast<std::uint8_t>(cborMode) == 7U);
+
+    float cborFloat = 9.0F;
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 9U>{
+            0xFBU, 0x3FU, 0xF0U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U
+        },
+        cborFloat
+    );
+    assert(cborDecode.Status == DeserialisationStatus::TypeMismatch);
+    assert(cborFloat == 9.0F);
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 3U>{0xF9U, 0x00U, 0x00U},
+        cborFloat
+    );
+    assert(cborDecode.Status == DeserialisationStatus::TypeMismatch);
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 5U>{0xFAU, 0x7FU, 0x80U, 0x00U, 0x00U},
+        cborFloat
+    );
+    assert(cborDecode.Status == DeserialisationStatus::NonFiniteNumber);
+    assert(cborFloat == 9.0F);
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 5U>{0xFAU, 0x80U, 0x00U, 0x00U, 0x00U},
+        cborFloat
+    );
+    assert(cborDecode.IsSuccessful());
+    assert(cborFloat == 0.0F && std::signbit(cborFloat));
+
+    double cborDouble = 9.0;
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 5U>{0xFAU, 0x3FU, 0x80U, 0x00U, 0x00U},
+        cborDouble
+    );
+    assert(cborDecode.Status == DeserialisationStatus::TypeMismatch);
+    assert(cborDouble == 9.0);
+
+    ESPressio::Bounded::String<4U> cborDecodedText{};
+    assert(
+        cborDecodedText.Assign("old") ==
+        ESPressio::Bounded::StringAssignmentResult::Succeeded
+    );
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 2U>{0x41U, 0x41U},
+        cborDecodedText
+    );
+    assert(cborDecode.Status == DeserialisationStatus::TypeMismatch);
+    assert(cborDecodedText.View() == "old");
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 3U>{0x62U, 0xC0U, 0xAFU},
+        cborDecodedText
+    );
+    assert(cborDecode.Status == DeserialisationStatus::InvalidUtf8);
+    assert(cborDecodedText.View() == "old");
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 2U>{0x61U, 0x41U},
+        cborDecodedText
+    );
+    assert(cborDecode.IsSuccessful());
+    assert(cborDecodedText.View() == "A");
+
+    ESPressio::Bounded::Bytes<2U> cborDecodedBytes{};
+    assert(
+        cborDecodedBytes.PushBack(9U) ==
+        ESPressio::Bounded::BytesPushBackResult::Succeeded
+    );
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 2U>{0x61U, 0x41U},
+        cborDecodedBytes
+    );
+    assert(cborDecode.Status == DeserialisationStatus::TypeMismatch);
+    assert(cborDecodedBytes.Size() == 1U && cborDecodedBytes[0U] == 9U);
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 3U>{0x42U, 0x01U, 0xFEU},
+        cborDecodedBytes
+    );
+    assert(cborDecode.IsSuccessful());
+    assert(cborDecodedBytes.Size() == 2U);
+    assert(cborDecodedBytes[0U] == 0x01U && cborDecodedBytes[1U] == 0xFEU);
+
+    std::array<std::uint16_t, 3U> cborDecodedArray{9U, 9U, 9U};
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 4U>{0x83U, 0x01U, 0x02U, 0x03U},
+        cborDecodedArray
+    );
+    assert(cborDecode.IsSuccessful());
+    assert((cborDecodedArray == std::array<std::uint16_t, 3U>{1U, 2U, 3U}));
+    cborDecodedArray = {9U, 9U, 9U};
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 3U>{0x82U, 0x01U, 0x02U},
+        cborDecodedArray
+    );
+    assert(cborDecode.Status == DeserialisationStatus::TypeMismatch);
+    assert((cborDecodedArray == std::array<std::uint16_t, 3U>{9U, 9U, 9U}));
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 3U>{0x9FU, 0x01U, 0xFFU},
+        cborDecodedArray
+    );
+    assert(cborDecode.Status == DeserialisationStatus::MalformedRepresentation);
+
+    ESPressio::Bounded::Vector<std::uint16_t, 2U> cborDecodedVector{};
+    assert(
+        cborDecodedVector.PushBack(99U) ==
+        ESPressio::Bounded::VectorPushBackResult::Succeeded
+    );
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 3U>{0x82U, 0x06U, 0x07U},
+        cborDecodedVector
+    );
+    assert(cborDecode.IsSuccessful());
+    assert(cborDecodedVector.Size() == 2U);
+    assert(cborDecodedVector[0U] == 6U && cborDecodedVector[1U] == 7U);
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 4U>{0x83U, 0x01U, 0x02U, 0x03U},
+        cborDecodedVector
+    );
+    assert(cborDecode.Status == DeserialisationStatus::CapacityExceeded);
+    assert(cborDecodedVector.Size() == 2U);
+    assert(cborDecodedVector[0U] == 6U && cborDecodedVector[1U] == 7U);
+
+    std::optional<std::uint32_t> cborOptional{55U};
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 1U>{0xF6U},
+        cborOptional
+    );
+    assert(cborDecode.IsSuccessful() && !cborOptional.has_value());
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 2U>{0x18U, 0x49U},
+        cborOptional
+    );
+    assert(cborDecode.IsSuccessful());
+    assert(cborOptional.has_value() && cborOptional.value() == 73U);
+
+    // Arbitrary schema Field order is accepted; omission/null semantics remain transactional.
+
+    TestSupport::Payload cborDecodedPayload{};
+    assert(
+        cborDecodedPayload.Name.Assign("before") ==
+        ESPressio::Bounded::StringAssignmentResult::Succeeded
+    );
+    cborDecodedPayload.Count = 88U;
+    cborDecodedPayload.Child.Value = 99U;
+    const std::array<std::uint8_t, 8U> cborPayloadOutOfOrder{
+        0xA2U,
+        0x07U, 0x61U, 0x41U,
+        0x04U, 0xA1U, 0x09U, 0x0BU
+    };
+    cborDecode = DecodeCborBytes(cborPayloadOutOfOrder, cborDecodedPayload);
+    assert(cborDecode.IsSuccessful());
+    assert(cborDecodedPayload.Name.View() == "A");
+    assert(!cborDecodedPayload.Count.has_value());
+    assert(cborDecodedPayload.Child.Value == 11U);
+
+    assert(
+        cborDecodedPayload.Name.Assign("stable") ==
+        ESPressio::Bounded::StringAssignmentResult::Succeeded
+    );
+    cborDecodedPayload.Count = 77U;
+    cborDecodedPayload.Child.Value = 66U;
+    const std::array<std::uint8_t, 9U> cborPayloadRangeFailure{
+        0xA3U,
+        0x02U, 0x01U,
+        0x04U, 0xA1U, 0x09U, 0x1AU, 0x00U
+    };
+    cborDecode = DecodeCborBytes(cborPayloadRangeFailure, cborDecodedPayload);
+    assert(cborDecode.Status == DeserialisationStatus::MalformedRepresentation);
+    assert(cborDecodedPayload.Name.View() == "stable");
+    assert(cborDecodedPayload.Count.has_value() && cborDecodedPayload.Count.value() == 77U);
+    assert(cborDecodedPayload.Child.Value == 66U);
+
+    const std::array<std::uint8_t, 1U> cborMissingRequired{0xA0U};
+    cborDecode = DecodeCborBytes(cborMissingRequired, cborDecodedPayload);
+    assert(cborDecode.Status == DeserialisationStatus::MissingRequiredField);
+    assert(cborDecodedPayload.Child.Value == 66U);
+
+    const std::array<std::uint8_t, 7U> cborDuplicateField{
+        0xA2U,
+        0x04U, 0xA1U, 0x09U, 0x01U,
+        0x04U, 0xA0U
+    };
+    cborDecode = DecodeCborBytes(cborDuplicateField, cborDecodedPayload);
+    assert(cborDecode.Status == DeserialisationStatus::DuplicateField);
+    assert(cborDecodedPayload.Child.Value == 66U);
+
+    const std::array<std::uint8_t, 8U> cborUnknownExact{
+        0xA2U,
+        0x0AU, 0x82U, 0x01U, 0x02U,
+        0x04U, 0xA1U, 0x09U
+    };
+    cborDecode = DecodeCborBytes(cborUnknownExact, cborDecodedPayload);
+    assert(cborDecode.Status == DeserialisationStatus::UnknownField);
+    assert(cborDecodedPayload.Child.Value == 66U);
+
+    const std::array<std::uint8_t, 12U> cborUnknownIgnored{
+        0xA3U,
+        0x0AU, 0x82U, 0x01U, 0x02U,
+        0x04U, 0xA1U, 0x09U, 0x15U,
+        0x07U, 0x61U, 0x58U
+    };
+    cborDecode = Deserialise<
+        Cbor,
+        RootProfile::KnownTypeBody,
+        FieldProfile::Numeric,
+        StrictnessPolicy::IgnoreUnknownFields
+    >(
+        cborUnknownIgnored.data(),
+        cborUnknownIgnored.size(),
+        cborDecodedPayload
+    );
+    assert(cborDecode.IsSuccessful());
+    assert(cborDecodedPayload.Child.Value == 21U);
+    assert(cborDecodedPayload.Name.View() == "X");
+
+    cborDecodedPayload.Child.Value = 66U;
+    cborDecode = Deserialise<
+        Cbor,
+        RootProfile::KnownTypeBody,
+        FieldProfile::Numeric,
+        StrictnessPolicy::IgnoreUnknownFields,
+        ParserLimits<32U, 1U>
+    >(
+        cborUnknownIgnored.data(),
+        cborUnknownIgnored.size(),
+        cborDecodedPayload
+    );
+    assert(cborDecode.Status == DeserialisationStatus::ResourceLimitExceeded);
+    assert(cborDecodedPayload.Child.Value == 66U);
+
+    const std::array<std::uint8_t, 2U> cborTrailing{0x01U, 0x02U};
+    cborUnsigned8 = 9U;
+    cborDecode = DecodeCborBytes(cborTrailing, cborUnsigned8);
+    assert(cborDecode.Status == DeserialisationStatus::TrailingData);
+    assert(cborUnsigned8 == 9U);
+
+    TestSupport::StrongCounter cborDecodedStrong{1U};
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 2U>{0x18U, 0x2CU},
+        cborDecodedStrong
+    );
+    assert(cborDecode.IsSuccessful() && cborDecodedStrong.Value == 44U);
+
+    TestSupport::FallibleStrong cborDecodedFallible{8U};
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 2U>{0x18U, 0x63U},
+        cborDecodedFallible
+    );
+    assert(cborDecode.Status == DeserialisationStatus::AdaptationFailed);
+    assert(cborDecodedFallible.Value == 8U);
+
+    std::uint64_t cborMaximumUnsigned = 0U;
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 9U>{
+            0x1BU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU
+        },
+        cborMaximumUnsigned
+    );
+    assert(cborDecode.IsSuccessful());
+    assert(cborMaximumUnsigned == std::numeric_limits<std::uint64_t>::max());
+
+    std::int64_t cborMinimumSigned = 0;
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 9U>{
+            0x3BU, 0x7FU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU
+        },
+        cborMinimumSigned
+    );
+    assert(cborDecode.IsSuccessful());
+    assert(cborMinimumSigned == std::numeric_limits<std::int64_t>::min());
+
+    // CBOR Typed Envelope carries only version, exact 8-byte root identity, and body.
+
+    TestSupport::Payload cborEnvelopeSource{};
+    assert(
+        cborEnvelopeSource.Name.Assign("T") ==
+        ESPressio::Bounded::StringAssignmentResult::Succeeded
+    );
+    cborEnvelopeSource.Child.Value = 7U;
+    const auto cborEnvelopeMeasurement = Measure<
+        Cbor,
+        RootProfile::TypedEnvelope
+    >(cborEnvelopeSource);
+    assert(cborEnvelopeMeasurement.IsSuccessful());
+    std::array<std::uint8_t, 64U> cborEnvelopeOutput{};
+    const auto cborEnvelopeSerialisation = Serialise<
+        Cbor,
+        RootProfile::TypedEnvelope
+    >(
+        cborEnvelopeSource,
+        cborEnvelopeOutput.data(),
+        cborEnvelopeOutput.size()
+    );
+    assert(cborEnvelopeSerialisation.IsSuccessful());
+    assert(cborEnvelopeOutput[0U] == 0x83U);
+    assert(cborEnvelopeOutput[1U] == 0x01U);
+    assert(cborEnvelopeOutput[2U] == 0x48U);
+    const auto& cborExpectedIdentifier = TestSupport::Payload::Identifier.Bytes();
+    for (std::size_t index = 0U; index < cborExpectedIdentifier.size(); ++index) {
+        assert(cborEnvelopeOutput[3U + index] == cborExpectedIdentifier[index]);
+    }
+
+    TestSupport::Payload cborEnvelopeDestination{};
+    cborEnvelopeDestination.Child.Value = 99U;
+    auto cborEnvelopeDecode = Deserialise<
+        Cbor,
+        RootProfile::TypedEnvelope
+    >(
+        cborEnvelopeOutput.data(),
+        cborEnvelopeSerialisation.BytesWritten,
+        cborEnvelopeDestination
+    );
+    assert(cborEnvelopeDecode.IsSuccessful());
+    assert(cborEnvelopeDestination.Child.Value == 7U);
+    assert(cborEnvelopeDestination.Name.View() == "T");
+
+    auto cborBadEnvelope = cborEnvelopeOutput;
+    cborBadEnvelope[1U] = 0x02U;
+    cborEnvelopeDestination.Child.Value = 99U;
+    cborEnvelopeDecode = Deserialise<Cbor, RootProfile::TypedEnvelope>(
+        cborBadEnvelope.data(),
+        cborEnvelopeSerialisation.BytesWritten,
+        cborEnvelopeDestination
+    );
+    assert(cborEnvelopeDecode.Status == DeserialisationStatus::UnsupportedEnvelopeVersion);
+    assert(cborEnvelopeDestination.Child.Value == 99U);
+
+    cborBadEnvelope = cborEnvelopeOutput;
+    cborBadEnvelope[3U] ^= 0x01U;
+    cborEnvelopeDestination.Child.Value = 99U;
+    cborEnvelopeDecode = Deserialise<Cbor, RootProfile::TypedEnvelope>(
+        cborBadEnvelope.data(),
+        cborEnvelopeSerialisation.BytesWritten,
+        cborEnvelopeDestination
+    );
+    assert(cborEnvelopeDecode.Status == DeserialisationStatus::TypeIdentifierMismatch);
+    assert(cborEnvelopeDestination.Child.Value == 99U);
+
+    const std::array<std::uint8_t, 3U> cborIndefiniteArray{0x9FU, 0x01U, 0xFFU};
+    cborDecodedArray = {9U, 9U, 9U};
+    cborDecode = DecodeCborBytes(cborIndefiniteArray, cborDecodedArray);
+    assert(cborDecode.Status == DeserialisationStatus::MalformedRepresentation);
+    assert((cborDecodedArray == std::array<std::uint16_t, 3U>{9U, 9U, 9U}));
 
     return 0;
 }

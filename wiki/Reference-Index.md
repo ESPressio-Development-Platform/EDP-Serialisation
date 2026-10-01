@@ -4,6 +4,10 @@
 |---|---|---|
 | `src/ESPressio_Serialisation.hpp` | PUBLIC UMBRELLA | [Umbrella](Reference-ESPressio-Serialisation) |
 | `src/serialisation/CanonicalRepresentation.hpp` | PUBLIC TRAIT API | [CanonicalRepresentation](Reference-CanonicalRepresentation) |
+| `src/serialisation/EncodingSinks.hpp` | PRIVATE IMPLEMENTATION | [Encoding Sinks](Reference-EncodingSinks) |
+| `src/serialisation/CborEnvelope.hpp` | PRIVATE IMPLEMENTATION | [CBOR Typed Envelope](Reference-CborEnvelope) |
+| `src/serialisation/CborEncoding.hpp` | PRIVATE IMPLEMENTATION | [CBOR Encoding](Reference-CborEncoding) |
+| `src/serialisation/CborDecoding.hpp` | PRIVATE IMPLEMENTATION | [CBOR Decoding](Reference-CborDecoding) |
 | `src/serialisation/EnumSerialisationTraits.hpp` | PUBLIC TRAIT API | [EnumSerialisationTraits](Reference-EnumSerialisationTraits) |
 | `src/serialisation/JsonEncoding.hpp` | PRIVATE IMPLEMENTATION | [JSON Encoding](Reference-JsonEncoding) |
 | `src/serialisation/JsonEnvelope.hpp` | PRIVATE IMPLEMENTATION | [JSON Typed Envelope](Reference-JsonEnvelope) |

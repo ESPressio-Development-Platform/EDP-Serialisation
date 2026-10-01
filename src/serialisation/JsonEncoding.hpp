@@ -11,23 +11,14 @@
 #include <type_traits>
 
 #include <ESPressio_BoundedTypes.hpp>
-#include <ESPressio_Memory.hpp>
-#include <ESPressio_Platform_Portable_ByteOperations.hpp>
 #include <ESPressio_System.hpp>
 
 #include "CanonicalRepresentation.hpp"
+#include "EncodingSinks.hpp"
 #include "Results.hpp"
 #include "SerialisableType.hpp"
 
 namespace ESPressio::Serialisation::Detail {
-
-    /// Internal outcomes produced while appending bytes to one JSON sink.
-    enum class JsonSinkWriteResult : std::uint8_t {
-        /// The requested bytes were accounted for or retained successfully.
-        Succeeded = 0U,
-        /// The sink cannot represent or retain the requested additional bytes.
-        CapacityExceeded = 1U
-    };
 
     /// Internal outcomes produced by the allocation-free JSON encoder traversal.
     enum class JsonEncodingStatus : std::uint8_t {
@@ -81,162 +72,15 @@ namespace ESPressio::Serialisation::Detail {
 
     };
 
-    /// Zero-storage sink which computes the exact number of encoded JSON bytes.
-    class JsonCountingSink final {
-    private:
+    /// JSON-private compatibility alias for the shared codec-neutral sink result.
+    using JsonSinkWriteResult = EncodingSinkWriteResult;
 
-        // Size state.
+    /// JSON-private compatibility alias for the shared counting sink.
+    using JsonCountingSink = EncodingCountingSink;
 
-        /// Exact number of JSON bytes accounted for so far.
-        std::size_t _size = 0U;
-
-    public:
-
-        // Byte accounting.
-
-        /// Accounts for one encoded byte while protecting size_t from overflow.
-        ///
-        /// @param value Encoded byte whose value is irrelevant to counting.
-        /// @return Succeeded when one byte was accounted for; CapacityExceeded on size_t overflow.
-        JsonSinkWriteResult WriteByte(
-            std::uint8_t value
-        ) noexcept {
-            static_cast<void>(value);
-
-            if (_size == std::numeric_limits<std::size_t>::max()) {
-                return JsonSinkWriteResult::CapacityExceeded;
-            }
-
-            ++_size;
-            return JsonSinkWriteResult::Succeeded;
-        }
-
-        /// Accounts for an encoded byte range while protecting size_t from overflow.
-        ///
-        /// @param source Source bytes whose values are irrelevant to counting.
-        /// @param length Number of encoded bytes represented by the range.
-        /// @return Succeeded when the complete range was accounted for; CapacityExceeded on size_t overflow.
-        JsonSinkWriteResult WriteBytes(
-            const char* source,
-            std::size_t length
-        ) noexcept {
-            static_cast<void>(source);
-
-            if (length > std::numeric_limits<std::size_t>::max() - _size) {
-                return JsonSinkWriteResult::CapacityExceeded;
-            }
-
-            _size += length;
-            return JsonSinkWriteResult::Succeeded;
-        }
-
-        // Sink state inspection.
-
-        /// Returns the exact number of encoded bytes accounted for so far.
-        [[nodiscard]] constexpr std::size_t Size() const noexcept {
-            return _size;
-        }
-
-    };
-
-    /// Caller-buffer sink used only after successful exact pre-measurement.
-    ///
-    /// @tparam TByteOperationsProvider Stateless EDP-Memory ByteOperations provider selected at compile time.
-    template<
-        class TByteOperationsProvider = ESPressio::Platform::Portable::Memory::ByteOperationsProvider
-    >
-    class JsonBufferSink final {
-    private:
-
-        static_assert(
-            sizeof(ESPressio::Memory::Detail::ByteOperationsProviderTraits<TByteOperationsProvider>) > 0U,
-            "JSON output requires a provider satisfying the EDP-Memory ByteOperations contract"
-        );
-
-        static_assert(
-            std::is_empty_v<TByteOperationsProvider>,
-            "JSON output requires a stateless ByteOperations provider because no provider state is retained"
-        );
-
-        static_assert(
-            std::is_nothrow_default_constructible_v<TByteOperationsProvider>,
-            "JSON output requires a nothrow default-constructible ByteOperations provider"
-        );
-
-        // Caller-owned storage.
-
-        /// First byte of caller-owned output storage.
-        std::uint8_t* _output = nullptr;
-
-        /// Total writable capacity of caller-owned output storage.
-        std::size_t _capacity = 0U;
-
-        /// Number of bytes committed to caller-owned storage so far.
-        std::size_t _size = 0U;
-
-    public:
-
-        // Construction.
-
-        /// Binds the sink to caller-owned storage for one complete serialisation pass.
-        ///
-        /// @param output First byte of caller-owned output storage.
-        /// @param capacity Total writable output capacity in bytes.
-        JsonBufferSink(
-            std::uint8_t* output,
-            std::size_t capacity
-        ) noexcept :
-            _output(output),
-            _capacity(capacity) {
-        }
-
-        // Byte emission.
-
-        /// Writes one encoded byte when caller-owned capacity remains available.
-        ///
-        /// @param value Encoded byte to retain.
-        /// @return Succeeded when the byte was retained; CapacityExceeded otherwise.
-        JsonSinkWriteResult WriteByte(
-            std::uint8_t value
-        ) noexcept {
-            if (_size >= _capacity) { return JsonSinkWriteResult::CapacityExceeded; }
-
-            _output[_size] = value;
-            ++_size;
-            return JsonSinkWriteResult::Succeeded;
-        }
-
-        /// Writes a complete encoded byte range through the selected EDP-Memory ByteOperations provider.
-        ///
-        /// @param source First source byte to copy.
-        /// @param length Number of bytes to copy.
-        /// @return Succeeded when the complete range was retained; CapacityExceeded otherwise.
-        JsonSinkWriteResult WriteBytes(
-            const char* source,
-            std::size_t length
-        ) noexcept {
-            if (_size > _capacity || length > _capacity - _size) {
-                return JsonSinkWriteResult::CapacityExceeded;
-            }
-
-            TByteOperationsProvider{}.CopyBytes(
-                _output + _size,
-                source,
-                length
-            );
-
-            _size += length;
-            return JsonSinkWriteResult::Succeeded;
-        }
-
-        // Sink state inspection.
-
-        /// Returns the number of bytes committed to caller-owned storage so far.
-        [[nodiscard]] constexpr std::size_t Size() const noexcept {
-            return _size;
-        }
-
-    };
+    /// JSON-private compatibility alias for the shared caller-buffer sink.
+    template<class TByteOperationsProvider = ESPressio::Platform::Portable::Memory::ByteOperationsProvider>
+    using JsonBufferSink = EncodingBufferSink<TByteOperationsProvider>;
 
     /// Describes one standard fixed-size array specialization.
     ///

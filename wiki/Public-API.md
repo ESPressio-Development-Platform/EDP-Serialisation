@@ -2,7 +2,7 @@
 
 **Primary entry point:** `src/ESPressio_Serialisation.hpp`.
 
-The supported surface now includes the compile-time foundation plus JSON Numeric and LocalisedText encoding/transactional decoding for both Known-Type Body and Typed Envelope roots. CBOR remains pending.
+The supported surface includes the compile-time foundation, JSON and CBOR Numeric encoding/transactional decoding for both Known-Type Body and Typed Envelope roots, and JSON LocalisedText execution.
 
 ## Type qualification and extension
 
@@ -27,21 +27,25 @@ The supported surface now includes the compile-time foundation plus JSON Numeric
 - `DeserialisationStatus` / `DeserialisationResult`.
 - `Diagnostic` — bounded common byte-offset/Type/Field context; it owns no dynamic path tree.
 
-`MeasurementResult` and `SerialisationResult` are returned by the implemented encoding operations. `DeserialisationResult` is returned by transactional JSON decoding.
+`MeasurementResult` and `SerialisationResult` are returned by implemented JSON/CBOR encoding operations. `DeserialisationResult` is returned by transactional JSON/CBOR decoding.
 
 ## Encoding operations
 
-- `Measure<Json>(value)` validates the complete source and returns the exact canonical encoded byte count; `RootProfile::TypedEnvelope` adds deterministic root metadata around the same Numeric body.
-- `Serialise<Json>(value, output, capacity)` performs exact preflight measurement before writing and returns `BytesWritten == 0` for invalid source, failed adaptation, null output, or insufficient capacity. Its optional compile-time ByteOperations provider parameter defaults to EDP-Platform-Portable and must satisfy the EDP-Memory provider contract.
-- The root/Field template parameters default to `KnownTypeBody` / `Numeric`. `TypedEnvelope` is implemented for identified roots. Dedicated LocalisedText overloads accept a caller-owned EDP-Localisation Resolver/context plus scratch; CBOR selections still fail at compile time rather than falling back silently.
+- `Measure<Json/Cbor>(value)` validates the complete source and returns the exact canonical Numeric encoded byte count; `RootProfile::TypedEnvelope` adds the codec-specific deterministic root wrapper around the same body.
+- `Serialise<Json/Cbor>(value, output, capacity)` performs exact preflight measurement before writing and returns `BytesWritten == 0` for invalid source, failed adaptation, null output, or insufficient capacity. Its optional compile-time ByteOperations provider parameter defaults to EDP-Platform-Portable and must satisfy the EDP-Memory provider contract.
+- The root/Field template parameters default to `KnownTypeBody` / `Numeric`. `TypedEnvelope` is implemented for identified JSON and CBOR roots. Dedicated LocalisedText overloads remain JSON-specific and accept a caller-owned EDP-Localisation Resolver/context plus scratch.
 
 The caller owns source/output/input/destination storage. The source and forward canonical adapters must remain observationally stable during encoding. The immutable input and reverse adapters must remain deterministic during deserialisation replay.
 
 ## Decoding operation
 
-- `Deserialise<Json, KnownTypeBody, Numeric, Strictness, ParserLimits>(...)` performs complete validate-only pass one, rejects trailing non-whitespace, then replays the same immutable bytes to populate. `StrictnessPolicy::Exact` rejects unknown schema Fields; `IgnoreUnknownFields` structurally validates/skips them within the compile-time parser limits.
-- `Deserialise<Json, TypedEnvelope, Numeric, ...>(...)` additionally requires an identified root and validates envelope version plus exact root TypeIdentifier before the population pass. Unknown versions return `UnsupportedEnvelopeVersion`; identity mismatch returns `TypeIdentifierMismatch`.
-- Successful decode reports the complete input length in `BytesConsumed`; failure reports zero consumed bytes and preserves the destination for all validated failure modes. String/Bytes/sequence capacities, duplicate/missing Field rules, numeric ranges, UTF-8/Base64 and reverse canonical adapters are validated before population.
+- `Deserialise<Json/Cbor, KnownTypeBody, Numeric, Strictness, ParserLimits>(...)` performs complete validate-only pass one, rejects trailing representation data, then replays the same immutable bytes to populate. `StrictnessPolicy::Exact` rejects unknown schema Fields; `IgnoreUnknownFields` structurally validates/skips them within the compile-time parser limits.
+- `Deserialise<Json/Cbor, TypedEnvelope, Numeric, ...>(...)` additionally requires an identified root and validates the codec-specific envelope version plus exact root TypeIdentifier before the population pass. Unknown versions return `UnsupportedEnvelopeVersion`; identity mismatch returns `TypeIdentifierMismatch`.
+- Successful decode reports the complete input length in `BytesConsumed`; failure reports zero consumed bytes and preserves the destination for all validated failure modes. String/Bytes/sequence capacities, duplicate/missing Field rules, numeric ranges, codec-specific text/bytes rules, and reverse canonical adapters are validated before population.
+
+## CBOR Numeric operations
+
+CBOR uses definite maps/arrays, shortest canonical integer/length heads, exact binary32/binary64 widths, text strings only for `Bounded::String`, byte strings only for `Bounded::Bytes`, and a three-element Typed Envelope `[1, h'<8 bytes>', body]`. Indefinite containers, half precision, width/category coercion, and trailing bytes are rejected.
 
 ## LocalisedText operations
 

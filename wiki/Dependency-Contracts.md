@@ -18,7 +18,7 @@ Serialisation encoding/decoding consumes bounded `String`, `Bytes`, and `Vector`
 
 **Kind:** mandatory direct contract dependency.
 
-JSON decode adds no new direct dependency edge. `JsonBufferSink` validates the selected provider through `Memory::Detail::ByteOperationsProviderTraits` and delegates byte-range writes to the provider's `CopyBytes`. Serialisation therefore does not implement a parallel `memcpy`/hand-written raw-copy abstraction. The provider is compile-time selected and no provider pointer/object is retained by a sink.
+JSON/CBOR decode add no new direct dependency edge. `EncodingBufferSink` validates the selected provider through `Memory::Detail::ByteOperationsProviderTraits` and delegates JSON/CBOR byte-range writes to the provider's `CopyBytes`. Serialisation therefore does not implement a parallel `memcpy`/hand-written raw-copy abstraction. The provider is compile-time selected and no provider pointer/object is retained by a sink.
 
 ## Production dependency: EDP-Platform-Portable
 
@@ -53,4 +53,4 @@ EDP-Localisation ------+
 
 Foundational owners must not depend back on EDP-Serialisation. Transport, Persistence, Security, Threading, Command, Event, State and application layers are consumers above this repository rather than dependencies below it.
 
-Typed Envelope consumes `System::TypeIdentifier` through the already-direct `EDP-System` dependency. No additional dependency edge is introduced by the envelope checkpoint.
+JSON and CBOR Typed Envelopes consume `System::TypeIdentifier` through the already-direct `EDP-System` dependency. CBOR introduces no additional dependency edge.

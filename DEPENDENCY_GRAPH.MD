@@ -1,6 +1,6 @@
 # EDP-Serialisation Dependency Graph
 
-> Baseline: 2026-10-01 — JSON Numeric + LocalisedText execution for Known-Type Body and Typed Envelope roots. Direct dependencies reflect source-level ownership rather than relying on transitive availability.
+> Baseline: 2026-10-01 — JSON/CBOR Numeric plus JSON LocalisedText execution for Known-Type Body and Typed Envelope roots. Direct dependencies reflect source-level ownership rather than relying on transitive availability.
 
 ## Library Dependency Tree
 
@@ -36,4 +36,4 @@ No dependency points from these foundational repositories back to Serialisation.
 
 `EDP-Localisation` is now a direct production dependency because `JsonLocalisedText.hpp` and LocalisedText operation overloads consume its public context, language, scratch and Resolver contracts. Serialisation does not parse language packs or duplicate fallback policy.
 
-Typed Envelope uses the existing direct `EDP-System` dependency for canonical root `TypeIdentifier`; this checkpoint introduces no new dependency edge.
+JSON and CBOR Typed Envelope execution use the existing direct `EDP-System` dependency for canonical root `TypeIdentifier`. CBOR introduces no new dependency edge and reuses the same `EDP-Memory` / `EDP-Platform-Portable` caller-buffer sink contract as JSON.

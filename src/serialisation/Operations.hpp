@@ -4,6 +4,9 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "CborDecoding.hpp"
+#include "CborEncoding.hpp"
+#include "CborEnvelope.hpp"
 #include "JsonDecoding.hpp"
 #include "JsonEncoding.hpp"
 #include "JsonEnvelope.hpp"
@@ -15,6 +18,44 @@
 namespace ESPressio::Serialisation {
 
     namespace Detail {
+
+        /// Maps one internal CBOR encoder outcome to the public Measure outcome family.
+        constexpr MeasurementStatus ToMeasurementStatus(
+            CborEncodingStatus status
+        ) noexcept {
+            switch (status) {
+                case CborEncodingStatus::Succeeded:
+                    return MeasurementStatus::Succeeded;
+                case CborEncodingStatus::ResourceLimitExceeded:
+                    return MeasurementStatus::ResourceLimitExceeded;
+                case CborEncodingStatus::NonFiniteNumber:
+                    return MeasurementStatus::NonFiniteNumber;
+                case CborEncodingStatus::InvalidUtf8:
+                    return MeasurementStatus::InvalidUtf8;
+                case CborEncodingStatus::AdaptationFailed:
+                    return MeasurementStatus::AdaptationFailed;
+            }
+            return MeasurementStatus::ResourceLimitExceeded;
+        }
+
+        /// Maps one internal CBOR encoder outcome to the public Serialise outcome family.
+        constexpr SerialisationStatus ToSerialisationStatus(
+            CborEncodingStatus status
+        ) noexcept {
+            switch (status) {
+                case CborEncodingStatus::Succeeded:
+                    return SerialisationStatus::Succeeded;
+                case CborEncodingStatus::ResourceLimitExceeded:
+                    return SerialisationStatus::ResourceLimitExceeded;
+                case CborEncodingStatus::NonFiniteNumber:
+                    return SerialisationStatus::NonFiniteNumber;
+                case CborEncodingStatus::InvalidUtf8:
+                    return SerialisationStatus::InvalidUtf8;
+                case CborEncodingStatus::AdaptationFailed:
+                    return SerialisationStatus::AdaptationFailed;
+            }
+            return SerialisationStatus::ResourceLimitExceeded;
+        }
 
         /// Maps one internal JSON encoder outcome to the public Measure outcome family.
         ///
@@ -106,6 +147,43 @@ namespace ESPressio::Serialisation {
         }
 
 
+        /// Maps one internal CBOR decoder outcome to the public Deserialise outcome family.
+        constexpr DeserialisationStatus ToDeserialisationStatus(
+            CborDecodingStatus status
+        ) noexcept {
+            switch (status) {
+                case CborDecodingStatus::Succeeded:
+                    return DeserialisationStatus::Succeeded;
+                case CborDecodingStatus::MalformedRepresentation:
+                    return DeserialisationStatus::MalformedRepresentation;
+                case CborDecodingStatus::ResourceLimitExceeded:
+                    return DeserialisationStatus::ResourceLimitExceeded;
+                case CborDecodingStatus::UnknownField:
+                    return DeserialisationStatus::UnknownField;
+                case CborDecodingStatus::DuplicateField:
+                    return DeserialisationStatus::DuplicateField;
+                case CborDecodingStatus::MissingRequiredField:
+                    return DeserialisationStatus::MissingRequiredField;
+                case CborDecodingStatus::TypeMismatch:
+                    return DeserialisationStatus::TypeMismatch;
+                case CborDecodingStatus::NumericOutOfRange:
+                    return DeserialisationStatus::NumericOutOfRange;
+                case CborDecodingStatus::NonFiniteNumber:
+                    return DeserialisationStatus::NonFiniteNumber;
+                case CborDecodingStatus::InvalidUtf8:
+                    return DeserialisationStatus::InvalidUtf8;
+                case CborDecodingStatus::CapacityExceeded:
+                    return DeserialisationStatus::CapacityExceeded;
+                case CborDecodingStatus::AdaptationFailed:
+                    return DeserialisationStatus::AdaptationFailed;
+                case CborDecodingStatus::UnsupportedEnvelopeVersion:
+                    return DeserialisationStatus::UnsupportedEnvelopeVersion;
+                case CborDecodingStatus::TypeIdentifierMismatch:
+                    return DeserialisationStatus::TypeIdentifierMismatch;
+            }
+            return DeserialisationStatus::MalformedRepresentation;
+        }
+
         /// Maps one internal JSON decoder outcome to the public Deserialise outcome family.
         ///
         /// @param status Internal decoder outcome.
@@ -167,12 +245,12 @@ namespace ESPressio::Serialisation {
         template<class TCodec, RootProfile TRootProfile, FieldProfile TFieldProfile>
         consteval void ValidateImplementedDecodingProfile() {
             static_assert(
-                std::is_same_v<TCodec, Json>,
-                "This implementation checkpoint currently provides decoding only for the Json codec"
+                std::is_same_v<TCodec, Json> || std::is_same_v<TCodec, Cbor>,
+                "Numeric decoding is implemented only for the Json and Cbor codecs"
             );
             static_assert(
                 TRootProfile == RootProfile::KnownTypeBody || TRootProfile == RootProfile::TypedEnvelope,
-                "JSON decoding supports only the declared KnownTypeBody and TypedEnvelope root profiles"
+                "Numeric JSON/CBOR decoding supports only the declared KnownTypeBody and TypedEnvelope root profiles"
             );
             static_assert(
                 TFieldProfile == FieldProfile::Numeric,
@@ -188,12 +266,12 @@ namespace ESPressio::Serialisation {
         template<class TCodec, RootProfile TRootProfile, FieldProfile TFieldProfile>
         consteval void ValidateImplementedEncodingProfile() {
             static_assert(
-                std::is_same_v<TCodec, Json>,
-                "This implementation checkpoint currently provides encoding only for the Json codec"
+                std::is_same_v<TCodec, Json> || std::is_same_v<TCodec, Cbor>,
+                "Numeric encoding is implemented only for the Json and Cbor codecs"
             );
             static_assert(
                 TRootProfile == RootProfile::KnownTypeBody || TRootProfile == RootProfile::TypedEnvelope,
-                "JSON encoding supports only the declared KnownTypeBody and TypedEnvelope root profiles"
+                "Numeric JSON/CBOR encoding supports only the declared KnownTypeBody and TypedEnvelope root profiles"
             );
             static_assert(
                 TFieldProfile == FieldProfile::Numeric,
@@ -374,12 +452,107 @@ namespace ESPressio::Serialisation {
             };
         }
 
+        /// Runs transactional CBOR decoding through the numeric Field profile.
+        ///
+        /// @tparam TRootProfile Compile-time root profile.
+        /// @tparam TStrictness Unknown-Field handling policy.
+        /// @tparam TParserLimits Compile-time parser resource policy.
+        /// @tparam TValue Serialisable destination Type.
+        /// @param input First byte of caller-owned immutable CBOR input.
+        /// @param length Complete caller-owned input length.
+        /// @param destination Existing destination populated only after complete validation succeeds.
+        /// @return Operation-specific transactional decode outcome.
+        template<
+            RootProfile TRootProfile,
+            StrictnessPolicy TStrictness,
+            class TParserLimits,
+            SerialisableType TValue
+        >
+        DeserialisationResult DeserialiseCbor(
+            const std::uint8_t* input,
+            std::size_t length,
+            TValue& destination
+        ) noexcept {
+            if (input == nullptr) {
+                return {DeserialisationStatus::InvalidArgument, 0U, {}};
+            }
+            if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
+                static_assert(
+                    System::IdentifiedType<TValue>,
+                    "RootProfile::TypedEnvelope requires a root Type satisfying System::IdentifiedType"
+                );
+            }
+
+            CborInputCursor validationCursor{input, length};
+            CborSkipState validationSkipState{};
+            Diagnostic validationDiagnostic{};
+            const auto validationStatus = [&]() noexcept {
+                if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
+                    return DecodeCborTypedEnvelope<false, TStrictness, TParserLimits>(
+                        validationCursor,
+                        &destination,
+                        validationSkipState,
+                        validationDiagnostic
+                    );
+                } else {
+                    return DecodeCborValue<false, TStrictness, TParserLimits>(
+                        validationCursor,
+                        &destination,
+                        0U,
+                        validationSkipState,
+                        validationDiagnostic
+                    );
+                }
+            }();
+            if (validationStatus != CborDecodingStatus::Succeeded) {
+                return {
+                    ToDeserialisationStatus(validationStatus),
+                    0U,
+                    validationDiagnostic
+                };
+            }
+            if (!validationCursor.IsAtEnd()) {
+                validationDiagnostic.ByteOffset = validationCursor.Position();
+                return {DeserialisationStatus::TrailingData, 0U, validationDiagnostic};
+            }
+
+            CborInputCursor populationCursor{input, length};
+            CborSkipState populationSkipState{};
+            Diagnostic populationDiagnostic{};
+            const auto populationStatus = [&]() noexcept {
+                if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
+                    return DecodeCborTypedEnvelope<true, TStrictness, TParserLimits>(
+                        populationCursor,
+                        &destination,
+                        populationSkipState,
+                        populationDiagnostic
+                    );
+                } else {
+                    return DecodeCborValue<true, TStrictness, TParserLimits>(
+                        populationCursor,
+                        &destination,
+                        0U,
+                        populationSkipState,
+                        populationDiagnostic
+                    );
+                }
+            }();
+            if (populationStatus != CborDecodingStatus::Succeeded) {
+                return {
+                    ToDeserialisationStatus(populationStatus),
+                    0U,
+                    populationDiagnostic
+                };
+            }
+            return {DeserialisationStatus::Succeeded, length, {}};
+        }
+
     } // ESPressio::Serialisation::Detail
 
     /// Validates and measures one exact canonical encoded representation without retaining output bytes.
     ///
-    /// The implemented JSON Numeric Field profile supports both KnownTypeBody and explicit TypedEnvelope roots.
-    /// Other codec/Field-profile selections fail with focused diagnostics until their implementation slices land.
+    /// The implemented Numeric Field profile supports JSON and CBOR under both KnownTypeBody and explicit
+    /// TypedEnvelope roots. LocalisedText remains available through the dedicated JSON overloads below.
     ///
     /// @tparam TCodec Compile-time codec tag.
     /// @tparam TRootProfile Compile-time root profile.
@@ -409,21 +582,37 @@ namespace ESPressio::Serialisation {
             );
         }
 
-        Detail::JsonCountingSink sink{};
+        Detail::EncodingCountingSink sink{};
         Diagnostic diagnostic{};
         const auto status = [&]() noexcept {
-            if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
-                return Detail::EncodeJsonTypedEnvelope(
-                    sink,
-                    value,
-                    diagnostic
-                );
+            if constexpr (std::is_same_v<TCodec, Json>) {
+                if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
+                    return Detail::EncodeJsonTypedEnvelope(
+                        sink,
+                        value,
+                        diagnostic
+                    );
+                } else {
+                    return Detail::EncodeJsonValue(
+                        sink,
+                        value,
+                        diagnostic
+                    );
+                }
             } else {
-                return Detail::EncodeJsonValue(
-                    sink,
-                    value,
-                    diagnostic
-                );
+                if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
+                    return Detail::EncodeCborTypedEnvelope(
+                        sink,
+                        value,
+                        diagnostic
+                    );
+                } else {
+                    return Detail::EncodeCborValue(
+                        sink,
+                        value,
+                        diagnostic
+                    );
+                }
             }
         }();
         const auto publicStatus = Detail::ToMeasurementStatus(status);
@@ -504,30 +693,47 @@ namespace ESPressio::Serialisation {
             };
         }
 
-        Detail::JsonBufferSink<TByteOperationsProvider> sink{
+        Detail::EncodingBufferSink<TByteOperationsProvider> sink{
             output,
             capacity
         };
         Diagnostic diagnostic{};
         const auto status = [&]() noexcept {
-            if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
-                return Detail::EncodeJsonTypedEnvelope(
-                    sink,
-                    value,
-                    diagnostic
-                );
+            if constexpr (std::is_same_v<TCodec, Json>) {
+                if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
+                    return Detail::EncodeJsonTypedEnvelope(
+                        sink,
+                        value,
+                        diagnostic
+                    );
+                } else {
+                    return Detail::EncodeJsonValue(
+                        sink,
+                        value,
+                        diagnostic
+                    );
+                }
             } else {
-                return Detail::EncodeJsonValue(
-                    sink,
-                    value,
-                    diagnostic
-                );
+                if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
+                    return Detail::EncodeCborTypedEnvelope(
+                        sink,
+                        value,
+                        diagnostic
+                    );
+                } else {
+                    return Detail::EncodeCborValue(
+                        sink,
+                        value,
+                        diagnostic
+                    );
+                }
             }
         }();
 
-        if (status != Detail::JsonEncodingStatus::Succeeded) {
+        const auto publicStatus = Detail::ToSerialisationStatus(status);
+        if (publicStatus != SerialisationStatus::Succeeded) {
             return {
-                Detail::ToSerialisationStatus(status),
+                publicStatus,
                 measurement.RequiredBytes,
                 0U,
                 diagnostic
@@ -542,14 +748,14 @@ namespace ESPressio::Serialisation {
         };
     }
 
-    /// Transactionally deserialises one complete JSON representation from caller-owned contiguous input.
+    /// Transactionally deserialises one complete JSON or CBOR Numeric representation from caller-owned contiguous input.
     ///
     /// The operation first validates the complete replayable input without modifying destination state. Only
     /// after the first pass succeeds does it replay the same bytes to populate the destination. Canonical reverse
     /// adapters must therefore remain deterministic for an identical surrogate value throughout one call.
     ///
-    /// The implemented JSON Numeric Field profile supports both KnownTypeBody and explicit TypedEnvelope roots.
-    /// Other codec/Field-profile selections fail with focused diagnostics until their implementation slices land.
+    /// The implemented Numeric Field profile supports JSON and CBOR under both KnownTypeBody and explicit
+    /// TypedEnvelope roots. LocalisedText remains available through the dedicated JSON overloads below.
     ///
     /// @tparam TCodec Compile-time codec tag.
     /// @tparam TRootProfile Compile-time root profile.
@@ -557,7 +763,7 @@ namespace ESPressio::Serialisation {
     /// @tparam TStrictness Unknown-Field handling policy.
     /// @tparam TParserLimits Compile-time nesting and unknown-skip resource policy.
     /// @tparam TValue Serialisable destination Type.
-    /// @param input First byte of caller-owned immutable JSON input.
+    /// @param input First byte of caller-owned immutable JSON or CBOR input.
     /// @param length Number of bytes in the complete caller-owned input range.
     /// @param destination Existing destination object populated only after complete validation succeeds.
     /// @return Operation-specific outcome; BytesConsumed equals length only on success.
@@ -579,6 +785,18 @@ namespace ESPressio::Serialisation {
             TRootProfile,
             TFieldProfile
         >();
+
+        if constexpr (std::is_same_v<TCodec, Cbor>) {
+            return Detail::DeserialiseCbor<
+                TRootProfile,
+                TStrictness,
+                TParserLimits
+            >(
+                input,
+                length,
+                destination
+            );
+        }
 
         if (input == nullptr) {
             return {
@@ -771,7 +989,7 @@ namespace ESPressio::Serialisation {
             fieldNameScratch,
             comparisonScratch
         };
-        Detail::JsonCountingSink sink{};
+        Detail::EncodingCountingSink sink{};
         Diagnostic diagnostic{};
         const auto status = [&]() noexcept {
             if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
@@ -881,7 +1099,7 @@ namespace ESPressio::Serialisation {
             fieldNameScratch,
             comparisonScratch
         };
-        Detail::JsonBufferSink<TByteOperationsProvider> sink{output, capacity};
+        Detail::EncodingBufferSink<TByteOperationsProvider> sink{output, capacity};
         Diagnostic diagnostic{};
         const auto status = [&]() noexcept {
             if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
