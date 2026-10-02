@@ -32,6 +32,12 @@ Current negative contracts prove:
 - Optional and Bounded Vector elements must be nothrow default-constructible for transactional population;
 - adapted semantic Types must provide a nothrow default or copy construction path for validation temporaries.
 
+## Runnable examples
+
+`examples/json-numeric-round-trip` is the maintained end-to-end onboarding example. Its portable CMake source is reproduced verbatim in the root README and `tests/verify_readme_example.py` fails when the two representations diverge. The example exercises application schema definition, `SerialisableType` qualification, bounded source population, exact `Measure<Json>`, caller-owned span output, canonical Numeric Known-Type Body serialisation, exact written-range transactional deserialisation, and round-trip verification.
+
+The example also provides Arduino IDE, PIOArduino Arduino-ESP32, and PIOArduino ESP-IDF forms. The checked-in GitHub Actions matrix builds the two PIOArduino forms, while the CMake validation job executes the portable form. Example code is governed by the same `CODE_CONVENTION.MD` rules as production and demo source.
+
 ## Embedded demos
 
 `demos/type-qualification`, `demos/json-numeric-encoding`, `demos/json-numeric-decoding`, `demos/json-typed-envelope`, `demos/json-localised-text`, and `demos/cbor-numeric` all exist in the three V2-required forms. AI-AGENT-02 validates both PlatformIO-format variants with PIOArduino for all six logical demos against Arduino-ESP32 and ESP-IDF. The encoding demo instantiates floating encoding plus String, Optional, Bytes/Base64, schema ordering, Measure and Serialise. The decoding demo instantiates floating `from_chars`, UTF-8/Optional/Base64 and transactional schema population. The appliance currently has no `arduino-cli`, so the Arduino IDE `.ino` form is maintained/buildable source but did not receive a distinct Arduino-CLI execution gate in this checkpoint.

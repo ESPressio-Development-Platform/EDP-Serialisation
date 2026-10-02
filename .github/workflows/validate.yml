@@ -111,8 +111,22 @@ jobs:
           -DEDP_LOCALISATION_SOURCE_DIR=${{ github.workspace }}/deps/EDP-Localisation
           && cmake --build tests/.cmake-build --parallel 2
           && tests/.cmake-build/EDP_Serialisation_HostTests
+      - name: Verify and execute README round-trip example
+        run: |
+          python3 tests/verify_readme_example.py
+          cmake -S examples/json-numeric-round-trip/Portable_CMake \
+                -B "${{ runner.temp }}/edp-serialisation-json-round-trip" \
+                -DEDP_SYSTEM_SOURCE_DIR=${{ github.workspace }}/deps/EDP-System \
+                -DEDP_BOUNDED_TYPES_SOURCE_DIR=${{ github.workspace }}/deps/EDP-BoundedTypes \
+                -DEDP_PLATFORM_SOURCE_DIR=${{ github.workspace }}/deps/EDP-Platform \
+                -DEDP_MEMORY_SOURCE_DIR=${{ github.workspace }}/deps/EDP-Memory \
+                -DEDP_BOUNDED_TOPOLOGY_SOURCE_DIR=${{ github.workspace }}/deps/EDP-BoundedTopology \
+                -DEDP_PLATFORM_PORTABLE_SOURCE_DIR=${{ github.workspace }}/deps/EDP-Platform-Portable \
+                -DEDP_LOCALISATION_SOURCE_DIR=${{ github.workspace }}/deps/EDP-Localisation
+          cmake --build "${{ runner.temp }}/edp-serialisation-json-round-trip" --parallel 2
+          "${{ runner.temp }}/edp-serialisation-json-round-trip/EDP_Serialisation_JsonNumericRoundTrip"
 
-  pioarduino-demos:
+  pioarduino-projects:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -130,6 +144,8 @@ jobs:
           - demos/json-localised-text/PlatformIO_ESP-IDF
           - demos/cbor-numeric/PlatformIO_Arduino
           - demos/cbor-numeric/PlatformIO_ESP-IDF
+          - examples/json-numeric-round-trip/PlatformIO_Arduino
+          - examples/json-numeric-round-trip/PlatformIO_ESP-IDF
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -141,5 +157,5 @@ jobs:
           curl -fsSL -o get-platformio.py https://raw.githubusercontent.com/pioarduino/pioarduino-core-installer/pioarduino/get-platformio.py
           python3 get-platformio.py
           echo "$HOME/.platformio/penv/bin" >> "$GITHUB_PATH"
-      - name: Build demo
+      - name: Build project
         run: pio run -d "${{ matrix.project }}"

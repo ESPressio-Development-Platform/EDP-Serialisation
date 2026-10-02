@@ -24,4 +24,4 @@ Builds the JSON LocalisedText Field profile using a compact resolver-compatible 
 
 ## cbor-numeric
 
-Builds deterministic CBOR Numeric execution for an identified schema under the explicit Typed Envelope profile. The schema deliberately declares Fields out of numeric order, encodes `Bounded::String` as CBOR text and `Bounded::Bytes` as CBOR bytes, then transactionally decodes the caller-owned representation back into the same compile-time Type.
+Builds deterministic CBOR Numeric execution for the same identified schema under both Known-Type Body and explicit Typed Envelope root profiles. The schema deliberately declares Fields out of numeric order, encodes `Bounded::String` as CBOR text and `Bounded::Bytes` as CBOR bytes, then transactionally decodes each caller-owned representation back into the same compile-time Type.
