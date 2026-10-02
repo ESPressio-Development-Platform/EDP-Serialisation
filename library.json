@@ -38,6 +38,11 @@
       "platforms": "*"
     },
     {
+      "name": "EDP-BoundedTopology",
+      "version": "https://github.com/ESPressio-Development-Platform/EDP-BoundedTopology.git#main",
+      "platforms": "*"
+    },
+    {
       "name": "EDP-Memory",
       "version": "https://github.com/ESPressio-Development-Platform/EDP-Memory.git#main",
       "platforms": "*"

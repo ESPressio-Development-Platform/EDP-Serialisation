@@ -27,7 +27,12 @@ namespace ESPressio::Serialisation::Detail {
     ) noexcept {
         static_assert(System::IdentifiedType<TValue>);
 
-        auto status = EncodeCborHead(sink, 4U, 3U, diagnostic);
+        auto status = EncodeCborHead(
+            sink,
+            4U,
+            3U,
+            diagnostic
+        );
         if (status != CborEncodingStatus::Succeeded) { return status; }
 
         status = EncodeCborInteger(
@@ -37,7 +42,12 @@ namespace ESPressio::Serialisation::Detail {
         );
         if (status != CborEncodingStatus::Succeeded) { return status; }
 
-        status = EncodeCborHead(sink, 2U, 8U, diagnostic);
+        status = EncodeCborHead(
+            sink,
+            2U,
+            8U,
+            diagnostic
+        );
         if (status != CborEncodingStatus::Succeeded) { return status; }
         const auto& identifierBytes = System::TypeIdentifierOf<TValue>.Bytes();
         status = WriteCborBytes(
@@ -48,7 +58,11 @@ namespace ESPressio::Serialisation::Detail {
         );
         if (status != CborEncodingStatus::Succeeded) { return status; }
 
-        return EncodeCborValue(sink, value, diagnostic);
+        return EncodeCborValue(
+            sink,
+            value,
+            diagnostic
+        );
     }
 
     /// Decodes the explicit V1 CBOR Typed Envelope and verifies root identity before body population.
@@ -77,18 +91,30 @@ namespace ESPressio::Serialisation::Detail {
         static_assert(System::IdentifiedType<TValue>);
         const auto start = cursor.Position();
         CborHead envelope{};
-        auto status = ReadCborHead(cursor, envelope, diagnostic);
+        auto status = ReadCborHead(
+            cursor,
+            envelope,
+            diagnostic
+        );
         if (status != CborDecodingStatus::Succeeded) { return status; }
         if (envelope.MajorType != 4U || envelope.Argument != 3U) {
             diagnostic.ByteOffset = start;
             return CborDecodingStatus::MalformedRepresentation;
         }
-        status = EnterCborContainer<TParserLimits>(0U, start, diagnostic);
+        status = EnterCborContainer<TParserLimits>(
+            0U,
+            start,
+            diagnostic
+        );
         if (status != CborDecodingStatus::Succeeded) { return status; }
 
         const auto versionStart = cursor.Position();
         CborHead version{};
-        status = ReadCborHead(cursor, version, diagnostic);
+        status = ReadCborHead(
+            cursor,
+            version,
+            diagnostic
+        );
         if (status != CborDecodingStatus::Succeeded) { return status; }
         if (version.MajorType != 0U) {
             diagnostic.ByteOffset = versionStart;
@@ -101,13 +127,20 @@ namespace ESPressio::Serialisation::Detail {
 
         const auto identifierStart = cursor.Position();
         CborHead identifierHead{};
-        status = ReadCborHead(cursor, identifierHead, diagnostic);
+        status = ReadCborHead(
+            cursor,
+            identifierHead,
+            diagnostic
+        );
         if (status != CborDecodingStatus::Succeeded) { return status; }
         if (identifierHead.MajorType != 2U || identifierHead.Argument != 8U) {
             diagnostic.ByteOffset = identifierStart;
             return CborDecodingStatus::MalformedRepresentation;
         }
-        if (!CborHasBytes(cursor, 8U)) {
+        if (!CborHasBytes(
+            cursor,
+            8U
+        )) {
             diagnostic.ByteOffset = identifierStart;
             return CborDecodingStatus::MalformedRepresentation;
         }

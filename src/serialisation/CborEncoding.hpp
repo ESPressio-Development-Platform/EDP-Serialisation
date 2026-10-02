@@ -133,7 +133,12 @@ namespace ESPressio::Serialisation::Detail {
             );
         }
         size += argumentBytes;
-        return WriteCborBytes(sink, bytes.data(), size, diagnostic);
+        return WriteCborBytes(
+            sink,
+            bytes.data(),
+            size,
+            diagnostic
+        );
     }
 
     /// Encodes one supported integer through CBOR major type 0 or 1.
@@ -159,7 +164,12 @@ namespace ESPressio::Serialisation::Detail {
                 const auto argument = static_cast<std::uint64_t>(
                     -(signedValue + 1)
                 );
-                return EncodeCborHead(sink, 1U, argument, diagnostic);
+                return EncodeCborHead(
+                    sink,
+                    1U,
+                    argument,
+                    diagnostic
+                );
             }
             return EncodeCborHead(
                 sink,
@@ -204,7 +214,12 @@ namespace ESPressio::Serialisation::Detail {
                 static_cast<std::uint8_t>(bits >> 8U),
                 static_cast<std::uint8_t>(bits)
             };
-            return WriteCborBytes(sink, bytes.data(), bytes.size(), diagnostic);
+            return WriteCborBytes(
+                sink,
+                bytes.data(),
+                bytes.size(),
+                diagnostic
+            );
         } else {
             const auto bits = std::bit_cast<std::uint64_t>(value);
             std::array<std::uint8_t, 9U> bytes{};
@@ -213,7 +228,12 @@ namespace ESPressio::Serialisation::Detail {
                 const auto shift = static_cast<unsigned>((7U - index) * 8U);
                 bytes[1U + index] = static_cast<std::uint8_t>(bits >> shift);
             }
-            return WriteCborBytes(sink, bytes.data(), bytes.size(), diagnostic);
+            return WriteCborBytes(
+                sink,
+                bytes.data(),
+                bytes.size(),
+                diagnostic
+            );
         }
     }
 
@@ -232,7 +252,10 @@ namespace ESPressio::Serialisation::Detail {
         std::size_t size,
         Diagnostic& diagnostic
     ) noexcept {
-        const auto validation = ValidateUtf8(data, size);
+        const auto validation = ValidateUtf8(
+            data,
+            size
+        );
         if (!validation.IsSuccessful()) {
             diagnostic.ByteOffset = validation.ByteOffset;
             return CborEncodingStatus::InvalidUtf8;
@@ -274,7 +297,12 @@ namespace ESPressio::Serialisation::Detail {
             diagnostic
         );
         if (status != CborEncodingStatus::Succeeded) { return status; }
-        return WriteCborBytes(sink, data, size, diagnostic);
+        return WriteCborBytes(
+            sink,
+            data,
+            size,
+            diagnostic
+        );
     }
 
     /// Forward declaration for recursive CBOR value encoding.
@@ -312,7 +340,11 @@ namespace ESPressio::Serialisation::Detail {
         );
         if (status != CborEncodingStatus::Succeeded) { return status; }
         for (std::size_t index = 0U; index < count; ++index) {
-            status = EncodeCborValue(sink, accessor(index), diagnostic);
+            status = EncodeCborValue(
+                sink,
+                accessor(index),
+                diagnostic
+            );
             if (status != CborEncodingStatus::Succeeded) { return status; }
         }
         return CborEncodingStatus::Succeeded;
@@ -431,7 +463,11 @@ namespace ESPressio::Serialisation::Detail {
             diagnostic
         );
         if (status != CborEncodingStatus::Succeeded) { return status; }
-        return EncodeCborSchemaFields<0U>(sink, value, diagnostic);
+        return EncodeCborSchemaFields<0U>(
+            sink,
+            value,
+            diagnostic
+        );
     }
 
     /// Encodes one value from the complete currently-qualified V1 universe as deterministic CBOR.
@@ -449,7 +485,10 @@ namespace ESPressio::Serialisation::Detail {
         Diagnostic& diagnostic
     ) noexcept {
         using Value = std::remove_cv_t<TValue>;
-        static_assert(IsSerialisableType<Value>, "CBOR encoding requires a SerialisableType source value");
+        static_assert(
+            IsSerialisableType<Value>,
+            "CBOR encoding requires a SerialisableType source value"
+        );
 
         if constexpr (std::is_same_v<Value, bool>) {
             return WriteCborByte(
@@ -458,9 +497,17 @@ namespace ESPressio::Serialisation::Detail {
                 diagnostic
             );
         } else if constexpr (IsFixedWidthInteger<Value>) {
-            return EncodeCborInteger(sink, value, diagnostic);
+            return EncodeCborInteger(
+                sink,
+                value,
+                diagnostic
+            );
         } else if constexpr (IsSupportedFloatingPoint<Value>) {
-            return EncodeCborFloating(sink, value, diagnostic);
+            return EncodeCborFloating(
+                sink,
+                value,
+                diagnostic
+            );
         } else if constexpr (std::is_enum_v<Value>) {
             using Underlying = typename EnumSerialisationTraits<Value>::UnderlyingType;
             return EncodeCborInteger(
@@ -470,9 +517,17 @@ namespace ESPressio::Serialisation::Detail {
             );
         } else if constexpr (OptionalValueTraits<Value>::IsValue) {
             if (!value.has_value()) {
-                return WriteCborByte(sink, 0xF6U, diagnostic);
+                return WriteCborByte(
+                    sink,
+                    0xF6U,
+                    diagnostic
+                );
             }
-            return EncodeCborValue(sink, value.value(), diagnostic);
+            return EncodeCborValue(
+                sink,
+                value.value(),
+                diagnostic
+            );
         } else if constexpr (StandardArrayTraits<Value>::IsValue) {
             return EncodeCborArray(
                 sink,
@@ -510,16 +565,27 @@ namespace ESPressio::Serialisation::Detail {
             );
         } else if constexpr (PotentialSchemaType<Value>) {
             static_assert(System::SchemaType<Value>);
-            return EncodeCborSchema(sink, value, diagnostic);
+            return EncodeCborSchema(
+                sink,
+                value,
+                diagnostic
+            );
         } else if constexpr (HasCanonicalRepresentation<Value>) {
             using Representation = std::remove_cv_t<typename CanonicalRepresentation<Value>::Type>;
             Representation representation{};
             using Adapter = Bounded::TypeConversionAdapter<Value, Representation>;
-            const auto conversionResult = Adapter::Convert(value, representation);
+            const auto conversionResult = Adapter::Convert(
+                value,
+                representation
+            );
             if (!Bounded::IsTypeConversionSuccessful<Value, Representation>(conversionResult)) {
                 return CborEncodingStatus::AdaptationFailed;
             }
-            return EncodeCborValue(sink, representation, diagnostic);
+            return EncodeCborValue(
+                sink,
+                representation,
+                diagnostic
+            );
         } else {
             static_assert(IsSerialisableType<Value>);
             return CborEncodingStatus::ResourceLimitExceeded;

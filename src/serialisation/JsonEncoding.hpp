@@ -810,7 +810,11 @@ namespace ESPressio::Serialisation::Detail {
     ) noexcept {
         static_cast<void>(policy);
         static_cast<void>(value);
-        return EncodeJsonFieldKey(sink, identifier, diagnostic);
+        return EncodeJsonFieldKey(
+            sink,
+            identifier,
+            diagnostic
+        );
     }
 
     /// Forward declaration for policy-aware recursive JSON value encoding.

@@ -1,6 +1,6 @@
 # EDP-Serialisation Demos
 
-Each logical demo is supplied in Arduino IDE, PlatformIO Arduino, and PlatformIO ESP-IDF forms.
+Each logical demo is supplied in Arduino IDE, PlatformIO Arduino, and PlatformIO ESP-IDF forms. ESPressio recommends PIOArduino Core for both PlatformIO-format variants; the checked-in project files select the maintained PIOArduino platform package and C++20 baseline.
 
 - `type-qualification` — demonstrates schema-driven `SerialisableType`, enum certification, bounded values, System identifier adaptation and compile-time profile/limit vocabulary.
 

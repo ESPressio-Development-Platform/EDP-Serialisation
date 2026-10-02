@@ -14,6 +14,7 @@
 #include "ParserLimits.hpp"
 #include "Profiles.hpp"
 #include "Results.hpp"
+#include "SchemaFieldPresence.hpp"
 
 namespace ESPressio::Serialisation::Detail {
 
@@ -231,11 +232,17 @@ namespace ESPressio::Serialisation::Detail {
                 return CborDecodingStatus::MalformedRepresentation;
         }
 
-        if (!CborHasBytes(cursor, width)) {
+        if (!CborHasBytes(
+            cursor,
+            width
+        )) {
             diagnostic.ByteOffset = start;
             return CborDecodingStatus::MalformedRepresentation;
         }
-        head.Argument = ReadCborBigEndian(cursor.CurrentData(), width);
+        head.Argument = ReadCborBigEndian(
+            cursor.CurrentData(),
+            width
+        );
         cursor.Advance(width);
         if (head.Argument < canonicalMinimum) {
             diagnostic.ByteOffset = start;
@@ -315,7 +322,10 @@ namespace ESPressio::Serialisation::Detail {
             }
             cursor.Advance();
             const auto bits = static_cast<std::uint32_t>(
-                ReadCborBigEndian(cursor.CurrentData(), 4U)
+                ReadCborBigEndian(
+                    cursor.CurrentData(),
+                    4U
+                )
             );
             cursor.Advance(4U);
             value = std::bit_cast<float>(bits);
@@ -327,7 +337,10 @@ namespace ESPressio::Serialisation::Detail {
                     : CborDecodingStatus::TypeMismatch;
             }
             cursor.Advance();
-            const auto bits = ReadCborBigEndian(cursor.CurrentData(), 8U);
+            const auto bits = ReadCborBigEndian(
+                cursor.CurrentData(),
+                8U
+            );
             cursor.Advance(8U);
             value = std::bit_cast<double>(bits);
         }
@@ -383,19 +396,30 @@ namespace ESPressio::Serialisation::Detail {
 
         if (major <= 1U) {
             CborHead head{};
-            return ReadCborHead(cursor, head, diagnostic);
+            return ReadCborHead(
+                cursor,
+                head,
+                diagnostic
+            );
         }
 
         if (major == 2U || major == 3U) {
             CborHead head{};
-            auto status = ReadCborHead(cursor, head, diagnostic);
+            auto status = ReadCborHead(
+                cursor,
+                head,
+                diagnostic
+            );
             if (status != CborDecodingStatus::Succeeded) { return status; }
             if (head.Argument > std::numeric_limits<std::size_t>::max()) {
                 diagnostic.ByteOffset = start;
                 return CborDecodingStatus::ResourceLimitExceeded;
             }
             const auto length = static_cast<std::size_t>(head.Argument);
-            if (!CborHasBytes(cursor, length)) {
+            if (!CborHasBytes(
+                cursor,
+                length
+            )) {
                 diagnostic.ByteOffset = start;
                 return CborDecodingStatus::MalformedRepresentation;
             }
@@ -415,9 +439,17 @@ namespace ESPressio::Serialisation::Detail {
 
         if (major == 4U) {
             CborHead head{};
-            auto status = ReadCborHead(cursor, head, diagnostic);
+            auto status = ReadCborHead(
+                cursor,
+                head,
+                diagnostic
+            );
             if (status != CborDecodingStatus::Succeeded) { return status; }
-            status = EnterCborContainer<TParserLimits>(depth, start, diagnostic);
+            status = EnterCborContainer<TParserLimits>(
+                depth,
+                start,
+                diagnostic
+            );
             if (status != CborDecodingStatus::Succeeded) { return status; }
             if (head.Argument > cursor.Remaining()) {
                 diagnostic.ByteOffset = start;
@@ -443,15 +475,23 @@ namespace ESPressio::Serialisation::Detail {
 
         if (major == 5U) {
             CborHead head{};
-            auto status = ReadCborHead(cursor, head, diagnostic);
+            auto status = ReadCborHead(
+                cursor,
+                head,
+                diagnostic
+            );
             if (status != CborDecodingStatus::Succeeded) { return status; }
-            status = EnterCborContainer<TParserLimits>(depth, start, diagnostic);
+            status = EnterCborContainer<TParserLimits>(
+                depth,
+                start,
+                diagnostic
+            );
             if (status != CborDecodingStatus::Succeeded) { return status; }
             if (head.Argument > 256U) {
                 diagnostic.ByteOffset = start;
                 return CborDecodingStatus::DuplicateField;
             }
-            std::array<std::uint8_t, 32U> seen{};
+            SchemaFieldPresenceSet seen{};
             for (std::uint64_t index = 0U; index < head.Argument; ++index) {
                 status = AccountSkippedCborItem<TParserLimits>(
                     skipState,
@@ -461,7 +501,11 @@ namespace ESPressio::Serialisation::Detail {
                 if (status != CborDecodingStatus::Succeeded) { return status; }
                 const auto keyStart = cursor.Position();
                 CborHead key{};
-                status = ReadCborHead(cursor, key, diagnostic);
+                status = ReadCborHead(
+                    cursor,
+                    key,
+                    diagnostic
+                );
                 if (status != CborDecodingStatus::Succeeded) { return status; }
                 if (key.MajorType != 0U || key.Argument > 255U) {
                     diagnostic.ByteOffset = keyStart;
@@ -470,12 +514,18 @@ namespace ESPressio::Serialisation::Detail {
                 const System::FieldIdentifier identifier{
                     static_cast<System::FieldIdentifier::Storage>(key.Argument)
                 };
-                if (IsFieldSeen(seen, identifier)) {
+                if (IsSchemaFieldSeen(
+                    seen,
+                    identifier
+                )) {
                     diagnostic.ByteOffset = keyStart;
                     diagnostic.Field = identifier;
                     return CborDecodingStatus::DuplicateField;
                 }
-                MarkFieldSeen(seen, identifier);
+                MarkSchemaFieldSeen(
+                    seen,
+                    identifier
+                );
                 status = SkipCborValue<TParserLimits>(
                     cursor,
                     depth + 1U,
@@ -499,11 +549,19 @@ namespace ESPressio::Serialisation::Detail {
         }
         if (initial == 0xFAU) {
             float value = 0.0F;
-            return ReadCborFloating(cursor, value, diagnostic);
+            return ReadCborFloating(
+                cursor,
+                value,
+                diagnostic
+            );
         }
         if (initial == 0xFBU) {
             double value = 0.0;
-            return ReadCborFloating(cursor, value, diagnostic);
+            return ReadCborFloating(
+                cursor,
+                value,
+                diagnostic
+            );
         }
         diagnostic.ByteOffset = start;
         return CborDecodingStatus::TypeMismatch;
@@ -537,7 +595,11 @@ namespace ESPressio::Serialisation::Detail {
         }
 
         CborHead head{};
-        auto status = ReadCborHead(cursor, head, diagnostic);
+        auto status = ReadCborHead(
+            cursor,
+            head,
+            diagnostic
+        );
         if (status != CborDecodingStatus::Succeeded) { return status; }
 
         Value decoded{};
@@ -583,7 +645,11 @@ namespace ESPressio::Serialisation::Detail {
         Diagnostic& diagnostic
     ) noexcept {
         TValue decoded{};
-        const auto status = ReadCborFloating(cursor, decoded, diagnostic);
+        const auto status = ReadCborFloating(
+            cursor,
+            decoded,
+            diagnostic
+        );
         if (status != CborDecodingStatus::Succeeded) { return status; }
         if constexpr (TPopulate) { *destination = decoded; }
         return CborDecodingStatus::Succeeded;
@@ -605,7 +671,11 @@ namespace ESPressio::Serialisation::Detail {
     ) noexcept {
         const auto start = cursor.Position();
         CborHead head{};
-        auto status = ReadCborHead(cursor, head, diagnostic);
+        auto status = ReadCborHead(
+            cursor,
+            head,
+            diagnostic
+        );
         if (status != CborDecodingStatus::Succeeded) { return status; }
         if (head.MajorType != 3U) {
             diagnostic.ByteOffset = start;
@@ -616,7 +686,10 @@ namespace ESPressio::Serialisation::Detail {
             return CborDecodingStatus::CapacityExceeded;
         }
         const auto length = static_cast<std::size_t>(head.Argument);
-        if (!CborHasBytes(cursor, length)) {
+        if (!CborHasBytes(
+            cursor,
+            length
+        )) {
             diagnostic.ByteOffset = start;
             return CborDecodingStatus::MalformedRepresentation;
         }
@@ -657,7 +730,11 @@ namespace ESPressio::Serialisation::Detail {
     ) noexcept {
         const auto start = cursor.Position();
         CborHead head{};
-        auto status = ReadCborHead(cursor, head, diagnostic);
+        auto status = ReadCborHead(
+            cursor,
+            head,
+            diagnostic
+        );
         if (status != CborDecodingStatus::Succeeded) { return status; }
         if (head.MajorType != 2U) {
             diagnostic.ByteOffset = start;
@@ -668,12 +745,18 @@ namespace ESPressio::Serialisation::Detail {
             return CborDecodingStatus::CapacityExceeded;
         }
         const auto length = static_cast<std::size_t>(head.Argument);
-        if (!CborHasBytes(cursor, length)) {
+        if (!CborHasBytes(
+            cursor,
+            length
+        )) {
             diagnostic.ByteOffset = start;
             return CborDecodingStatus::MalformedRepresentation;
         }
         if constexpr (TPopulate) {
-            const auto assign = destination->Assign(cursor.CurrentData(), length);
+            const auto assign = destination->Assign(
+                cursor.CurrentData(),
+                length
+            );
             if (assign != Bounded::BytesAssignmentResult::Succeeded) {
                 return CborDecodingStatus::CapacityExceeded;
             }
@@ -711,13 +794,21 @@ namespace ESPressio::Serialisation::Detail {
     ) noexcept {
         const auto start = cursor.Position();
         CborHead head{};
-        auto status = ReadCborHead(cursor, head, diagnostic);
+        auto status = ReadCborHead(
+            cursor,
+            head,
+            diagnostic
+        );
         if (status != CborDecodingStatus::Succeeded) { return status; }
         if (head.MajorType != 4U || head.Argument != count) {
             diagnostic.ByteOffset = start;
             return CborDecodingStatus::TypeMismatch;
         }
-        status = EnterCborContainer<TParserLimits>(depth, start, diagnostic);
+        status = EnterCborContainer<TParserLimits>(
+            depth,
+            start,
+            diagnostic
+        );
         if (status != CborDecodingStatus::Succeeded) { return status; }
         for (std::size_t index = 0U; index < count; ++index) {
             status = DecodeCborValue<TPopulate, TStrictness, TParserLimits>(
@@ -759,13 +850,21 @@ namespace ESPressio::Serialisation::Detail {
     ) noexcept {
         const auto start = cursor.Position();
         CborHead head{};
-        auto status = ReadCborHead(cursor, head, diagnostic);
+        auto status = ReadCborHead(
+            cursor,
+            head,
+            diagnostic
+        );
         if (status != CborDecodingStatus::Succeeded) { return status; }
         if (head.MajorType != 4U) {
             diagnostic.ByteOffset = start;
             return CborDecodingStatus::TypeMismatch;
         }
-        status = EnterCborContainer<TParserLimits>(depth, start, diagnostic);
+        status = EnterCborContainer<TParserLimits>(
+            depth,
+            start,
+            diagnostic
+        );
         if (status != CborDecodingStatus::Succeeded) { return status; }
         if (head.Argument > BoundedVectorTraits<TValue>::Capacity) {
             diagnostic.ByteOffset = start;
@@ -924,7 +1023,7 @@ namespace ESPressio::Serialisation::Detail {
     /// @return Complete internal CBOR decoding outcome.
     template<bool TPopulate, class TValue>
     CborDecodingStatus FinaliseCborSchemaPresence(
-        const std::array<std::uint8_t, 32U>& seen,
+        const SchemaFieldPresenceSet& seen,
         TValue* destination,
         Diagnostic& diagnostic
     ) noexcept {
@@ -932,7 +1031,10 @@ namespace ESPressio::Serialisation::Detail {
         System::ForEachField<TValue>([&]<class TField>() constexpr {
             if (status != CborDecodingStatus::Succeeded) { return; }
             using FieldValue = std::remove_cv_t<System::FieldValueOf<TField>>;
-            const bool present = IsFieldSeen(seen, TField::Identifier);
+            const bool present = IsSchemaFieldSeen(
+                seen,
+                TField::Identifier
+            );
             if constexpr (OptionalValueTraits<FieldValue>::IsValue) {
                 if constexpr (TPopulate) {
                     if (!present) { (destination->*TField::Member).reset(); }
@@ -973,23 +1075,35 @@ namespace ESPressio::Serialisation::Detail {
     ) noexcept {
         const auto start = cursor.Position();
         CborHead head{};
-        auto status = ReadCborHead(cursor, head, diagnostic);
+        auto status = ReadCborHead(
+            cursor,
+            head,
+            diagnostic
+        );
         if (status != CborDecodingStatus::Succeeded) { return status; }
         if (head.MajorType != 5U) {
             diagnostic.ByteOffset = start;
             return CborDecodingStatus::TypeMismatch;
         }
-        status = EnterCborContainer<TParserLimits>(depth, start, diagnostic);
+        status = EnterCborContainer<TParserLimits>(
+            depth,
+            start,
+            diagnostic
+        );
         if (status != CborDecodingStatus::Succeeded) { return status; }
         if (head.Argument > 256U) {
             diagnostic.ByteOffset = start;
             return CborDecodingStatus::DuplicateField;
         }
-        std::array<std::uint8_t, 32U> seen{};
+        SchemaFieldPresenceSet seen{};
         for (std::uint64_t index = 0U; index < head.Argument; ++index) {
             const auto keyStart = cursor.Position();
             CborHead key{};
-            status = ReadCborHead(cursor, key, diagnostic);
+            status = ReadCborHead(
+                cursor,
+                key,
+                diagnostic
+            );
             if (status != CborDecodingStatus::Succeeded) { return status; }
             if (key.MajorType != 0U || key.Argument > 255U) {
                 diagnostic.ByteOffset = keyStart;
@@ -998,13 +1112,19 @@ namespace ESPressio::Serialisation::Detail {
             const System::FieldIdentifier identifier{
                 static_cast<System::FieldIdentifier::Storage>(key.Argument)
             };
-            if (IsFieldSeen(seen, identifier)) {
+            if (IsSchemaFieldSeen(
+                seen,
+                identifier
+            )) {
                 diagnostic.ByteOffset = keyStart;
                 diagnostic.Type = TValue::Identifier;
                 diagnostic.Field = identifier;
                 return CborDecodingStatus::DuplicateField;
             }
-            MarkFieldSeen(seen, identifier);
+            MarkSchemaFieldSeen(
+                seen,
+                identifier
+            );
 
             bool knownField = false;
             status = DecodeCborSchemaField<
@@ -1039,7 +1159,11 @@ namespace ESPressio::Serialisation::Detail {
                 }
             }
         }
-        return FinaliseCborSchemaPresence<TPopulate>(seen, destination, diagnostic);
+        return FinaliseCborSchemaPresence<TPopulate>(
+            seen,
+            destination,
+            diagnostic
+        );
     }
 
     /// Decodes one value from the complete V1 CBOR Type universe.
@@ -1068,7 +1192,10 @@ namespace ESPressio::Serialisation::Detail {
         Diagnostic& diagnostic
     ) noexcept {
         using Value = std::remove_cv_t<TValue>;
-        static_assert(IsSerialisableType<Value>, "CBOR decoding requires a SerialisableType target value");
+        static_assert(
+            IsSerialisableType<Value>,
+            "CBOR decoding requires a SerialisableType target value"
+        );
         const auto start = cursor.Position();
         if (cursor.IsAtEnd()) {
             diagnostic.ByteOffset = start;
@@ -1085,13 +1212,25 @@ namespace ESPressio::Serialisation::Detail {
             if constexpr (TPopulate) { *destination = initial == 0xF5U; }
             return CborDecodingStatus::Succeeded;
         } else if constexpr (IsFixedWidthInteger<Value>) {
-            return DecodeCborInteger<TPopulate>(cursor, destination, diagnostic);
+            return DecodeCborInteger<TPopulate>(
+                cursor,
+                destination,
+                diagnostic
+            );
         } else if constexpr (IsSupportedFloatingPoint<Value>) {
-            return DecodeCborFloating<TPopulate>(cursor, destination, diagnostic);
+            return DecodeCborFloating<TPopulate>(
+                cursor,
+                destination,
+                diagnostic
+            );
         } else if constexpr (std::is_enum_v<Value>) {
             using Underlying = typename EnumSerialisationTraits<Value>::UnderlyingType;
             Underlying underlying{};
-            const auto status = DecodeCborInteger<true>(cursor, &underlying, diagnostic);
+            const auto status = DecodeCborInteger<true>(
+                cursor,
+                &underlying,
+                diagnostic
+            );
             if (status != CborDecodingStatus::Succeeded) { return status; }
             if constexpr (TPopulate) { *destination = static_cast<Value>(underlying); }
             return CborDecodingStatus::Succeeded;
@@ -1141,9 +1280,17 @@ namespace ESPressio::Serialisation::Detail {
                 diagnostic
             );
         } else if constexpr (BoundedStringTraits<Value>::IsValue) {
-            return DecodeCborBoundedString<TPopulate>(cursor, destination, diagnostic);
+            return DecodeCborBoundedString<TPopulate>(
+                cursor,
+                destination,
+                diagnostic
+            );
         } else if constexpr (BoundedBytesTraits<Value>::IsValue) {
-            return DecodeCborBoundedBytes<TPopulate>(cursor, destination, diagnostic);
+            return DecodeCborBoundedBytes<TPopulate>(
+                cursor,
+                destination,
+                diagnostic
+            );
         } else if constexpr (BoundedVectorTraits<Value>::IsValue) {
             return DecodeCborVector<TPopulate, TStrictness, TParserLimits>(
                 cursor,
@@ -1174,20 +1321,29 @@ namespace ESPressio::Serialisation::Detail {
             if (status != CborDecodingStatus::Succeeded) { return status; }
             using Adapter = Bounded::TypeConversionAdapter<Representation, Value>;
             if constexpr (TPopulate) {
-                const auto result = Adapter::Convert(representation, *destination);
+                const auto result = Adapter::Convert(
+                    representation,
+                    *destination
+                );
                 if (!Bounded::IsTypeConversionSuccessful<Representation, Value>(result)) {
                     return CborDecodingStatus::AdaptationFailed;
                 }
             } else if constexpr (std::is_nothrow_default_constructible_v<Value>) {
                 Value validationTarget{};
-                const auto result = Adapter::Convert(representation, validationTarget);
+                const auto result = Adapter::Convert(
+                    representation,
+                    validationTarget
+                );
                 if (!Bounded::IsTypeConversionSuccessful<Representation, Value>(result)) {
                     return CborDecodingStatus::AdaptationFailed;
                 }
             } else {
                 if (destination == nullptr) { return CborDecodingStatus::AdaptationFailed; }
                 Value validationTarget{*destination};
-                const auto result = Adapter::Convert(representation, validationTarget);
+                const auto result = Adapter::Convert(
+                    representation,
+                    validationTarget
+                );
                 if (!Bounded::IsTypeConversionSuccessful<Representation, Value>(result)) {
                     return CborDecodingStatus::AdaptationFailed;
                 }

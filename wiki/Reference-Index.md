@@ -18,6 +18,7 @@
 | `src/serialisation/ParserLimits.hpp` | PUBLIC POLICY API | [ParserLimits](Reference-ParserLimits) |
 | `src/serialisation/Profiles.hpp` | PUBLIC PROFILE API | [Profiles](Reference-Profiles) |
 | `src/serialisation/Results.hpp` | PUBLIC RESULT API | [Results](Reference-Results) |
+| `src/serialisation/SchemaFieldPresence.hpp` | PRIVATE IMPLEMENTATION | [Schema Field Presence](Reference-SchemaFieldPresence) |
 | `src/serialisation/SerialisableType.hpp` | PUBLIC CONCEPT API | [SerialisableType](Reference-SerialisableType) |
 | `src/serialisation/SystemIdentifierAdapters.hpp` | PUBLIC INTEGRATION API | [SystemIdentifierAdapters](Reference-SystemIdentifierAdapters) |
 | `src/serialisation/Serialisation.hpp` | PUBLIC INTERNAL UMBRELLA | [Serialisation umbrella](Reference-Serialisation-Umbrella) |

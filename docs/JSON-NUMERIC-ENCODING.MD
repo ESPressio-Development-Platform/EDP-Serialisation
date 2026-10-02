@@ -22,7 +22,7 @@ const auto result = ESPressio::Serialisation::Serialise<
 
 The root and Field profile template parameters default to `KnownTypeBody` and `Numeric`. Selecting an unimplemented codec/profile combination currently fails at compile time with a focused diagnostic rather than silently falling back to another representation.
 
-`Measure` performs complete source validation and returns the exact representation size only on success. `Serialise` runs that same exact measurement before writing. Invalid source data, failed canonical adaptation, null output, or insufficient output capacity therefore produces `BytesWritten == 0`; capacity failure also reports the exact `RequiredBytes`.
+`Measure` performs complete source validation and returns the exact representation size only on success. `Serialise` runs that same exact measurement before writing. Invalid source data, failed canonical adaptation, or insufficient caller-owned `std::span<std::byte>` capacity therefore produces `BytesWritten == 0`; capacity failure also reports the exact `RequiredBytes`.
 
 The source value must not be concurrently mutated during a call. A canonical forward `TypeConversionAdapter` used by encoding must be observationally stable for an unchanged source because measurement and emission deliberately traverse the value separately to avoid retaining a second encoded object or hidden scratch buffer.
 

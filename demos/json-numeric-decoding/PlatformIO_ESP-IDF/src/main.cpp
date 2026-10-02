@@ -2,6 +2,7 @@
 #include <optional>
 
 #include <ESPressio_Serialisation.hpp>
+#include <span>
 
 namespace Demo {
 
@@ -52,10 +53,14 @@ namespace Demo {
         return ESPressio::Serialisation::Deserialise<
             ESPressio::Serialisation::Json
         >(
-            reinterpret_cast<const std::uint8_t*>(JsonDocument),
-            sizeof(JsonDocument) - 1U,
-            reading
-        );
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(JsonDocument),
+                sizeof(JsonDocument) - 1U
+            }
+        ),
+        reading
+    );
     }
 
 } // Demo

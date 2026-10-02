@@ -17,6 +17,7 @@
 #include "ParserLimits.hpp"
 #include "Profiles.hpp"
 #include "Results.hpp"
+#include "SchemaFieldPresence.hpp"
 #include "SerialisableType.hpp"
 
 namespace ESPressio::Serialisation::Detail {
@@ -64,6 +65,15 @@ namespace ESPressio::Serialisation::Detail {
         /// Localisation provider/pack/format/dataset resolution could not complete conclusively.
         LocalisationFailure = 19U
     };
+
+    /// Operation-specific result for converting one JSON hexadecimal digit to its nibble value.
+    enum class JsonHexValueConversionResult : std::uint8_t {
+        /// The input character was a valid hexadecimal digit and the nibble was produced.
+        Succeeded = 0U,
+        /// The input character is not a hexadecimal digit.
+        InvalidCharacter = 1U
+    };
+
 
     /// Lightweight immutable cursor over caller-owned JSON input.
     class JsonInputCursor final {
@@ -263,25 +273,28 @@ namespace ESPressio::Serialisation::Detail {
     }
 
     /// Converts one hexadecimal digit to its numeric nibble value.
-    [[nodiscard]] constexpr bool TryHexValue(
+    ///
+    /// @param value Candidate hexadecimal character.
+    /// @param result Caller-owned nibble output, mutated only on success.
+    /// @return Strongly typed conversion outcome.
+    [[nodiscard]] constexpr JsonHexValueConversionResult ConvertJsonHexValue(
         std::uint8_t value,
         std::uint8_t& result
     ) noexcept {
         if (value >= static_cast<std::uint8_t>('0') && value <= static_cast<std::uint8_t>('9')) {
             result = static_cast<std::uint8_t>(value - static_cast<std::uint8_t>('0'));
-            return true;
+            return JsonHexValueConversionResult::Succeeded;
         }
         if (value >= static_cast<std::uint8_t>('a') && value <= static_cast<std::uint8_t>('f')) {
             result = static_cast<std::uint8_t>(10U + value - static_cast<std::uint8_t>('a'));
-            return true;
+            return JsonHexValueConversionResult::Succeeded;
         }
         if (value >= static_cast<std::uint8_t>('A') && value <= static_cast<std::uint8_t>('F')) {
             result = static_cast<std::uint8_t>(10U + value - static_cast<std::uint8_t>('A'));
-            return true;
+            return JsonHexValueConversionResult::Succeeded;
         }
 
-        result = 0U;
-        return false;
+        return JsonHexValueConversionResult::InvalidCharacter;
     }
 
     /// Parses exactly four hexadecimal digits used by one JSON Unicode escape.
@@ -300,7 +313,12 @@ namespace ESPressio::Serialisation::Detail {
             }
 
             std::uint8_t nibble = 0U;
-            if (!TryHexValue(cursor.Current(), nibble)) {
+            if (
+                ConvertJsonHexValue(
+                    cursor.Current(),
+                    nibble
+                ) != JsonHexValueConversionResult::Succeeded
+            ) {
                 diagnostic.ByteOffset = cursor.Position();
                 return JsonDecodingStatus::MalformedRepresentation;
             }
@@ -581,7 +599,10 @@ namespace ESPressio::Serialisation::Detail {
             std::size_t length,
             std::size_t start
         ) noexcept :
-            Cursor(input, length) {
+            Cursor(
+                input,
+                length
+            ) {
             Cursor.Seek(start);
         }
 
@@ -1061,7 +1082,11 @@ namespace ESPressio::Serialisation::Detail {
         const auto totalDigits = token.MantissaDigits();
         bool allZero = true;
         for (std::size_t index = 0U; index < totalDigits; ++index) {
-            if (JsonMantissaDigitAt(cursor, token, index) != 0U) {
+            if (JsonMantissaDigitAt(
+                cursor,
+                token,
+                index
+            ) != 0U) {
                 allZero = false;
                 break;
             }
@@ -1102,7 +1127,11 @@ namespace ESPressio::Serialisation::Detail {
 
         for (std::uint64_t index = 0U; index < removeDigits; ++index) {
             const auto logicalIndex = totalDigits - 1U - static_cast<std::size_t>(index);
-            if (JsonMantissaDigitAt(cursor, token, logicalIndex) != 0U) {
+            if (JsonMantissaDigitAt(
+                cursor,
+                token,
+                logicalIndex
+            ) != 0U) {
                 diagnostic.ByteOffset = token.Start;
                 return JsonDecodingStatus::TypeMismatch;
             }
@@ -1121,7 +1150,11 @@ namespace ESPressio::Serialisation::Detail {
 
         std::uint64_t magnitude = 0U;
         for (std::size_t index = 0U; index < retainedDigits; ++index) {
-            const auto digit = JsonMantissaDigitAt(cursor, token, index);
+            const auto digit = JsonMantissaDigitAt(
+                cursor,
+                token,
+                index
+            );
             if (magnitude > (magnitudeLimit - digit) / 10U) {
                 diagnostic.ByteOffset = token.Start;
                 return JsonDecodingStatus::NumericOutOfRange;
@@ -1169,7 +1202,11 @@ namespace ESPressio::Serialisation::Detail {
         const JsonNumberToken& token
     ) noexcept {
         for (std::size_t index = 0U; index < token.MantissaDigits(); ++index) {
-            if (JsonMantissaDigitAt(cursor, token, index) != 0U) { return false; }
+            if (JsonMantissaDigitAt(
+                cursor,
+                token,
+                index
+            ) != 0U) { return false; }
         }
         return true;
     }
@@ -1181,7 +1218,11 @@ namespace ESPressio::Serialisation::Detail {
     ) noexcept {
         std::size_t firstNonZero = token.MantissaDigits();
         for (std::size_t index = 0U; index < token.MantissaDigits(); ++index) {
-            if (JsonMantissaDigitAt(cursor, token, index) != 0U) {
+            if (JsonMantissaDigitAt(
+                cursor,
+                token,
+                index
+            ) != 0U) {
                 firstNonZero = index;
                 break;
             }
@@ -1243,7 +1284,10 @@ namespace ESPressio::Serialisation::Detail {
     ) noexcept {
         static_assert(IsSupportedFloatingPoint<TValue>);
 
-        if (IsJsonNumberZero(cursor, token)) {
+        if (IsJsonNumberZero(
+            cursor,
+            token
+        )) {
             value = token.IsNegative
                 ? -static_cast<TValue>(0)
                 : static_cast<TValue>(0);
@@ -1261,7 +1305,10 @@ namespace ESPressio::Serialisation::Detail {
 
         if (result.ec == std::errc::result_out_of_range) {
             diagnostic.ByteOffset = token.Start;
-            return JsonScientificExponent(cursor, token) < 0
+            return JsonScientificExponent(
+                cursor,
+                token
+            ) < 0
                 ? JsonDecodingStatus::NumericUnderflow
                 : JsonDecodingStatus::NumericOutOfRange;
         }
@@ -1606,11 +1653,26 @@ namespace ESPressio::Serialisation::Detail {
                     diagnostic
                 );
             case static_cast<std::uint8_t>('t'):
-                return ConsumeJsonLiteral(cursor, "true", 4U, diagnostic);
+                return ConsumeJsonLiteral(
+                    cursor,
+                    "true",
+                    4U,
+                    diagnostic
+                );
             case static_cast<std::uint8_t>('f'):
-                return ConsumeJsonLiteral(cursor, "false", 5U, diagnostic);
+                return ConsumeJsonLiteral(
+                    cursor,
+                    "false",
+                    5U,
+                    diagnostic
+                );
             case static_cast<std::uint8_t>('n'):
-                return ConsumeJsonLiteral(cursor, "null", 4U, diagnostic);
+                return ConsumeJsonLiteral(
+                    cursor,
+                    "null",
+                    4U,
+                    diagnostic
+                );
             default: {
                 if (
                     cursor.Current() != static_cast<std::uint8_t>('-') &&
@@ -1839,7 +1901,11 @@ namespace ESPressio::Serialisation::Detail {
         Diagnostic& diagnostic
     ) noexcept {
         const auto start = cursor.Position();
-        auto status = EnterJsonContainer<TParserLimits>(depth, diagnostic, start);
+        auto status = EnterJsonContainer<TParserLimits>(
+            depth,
+            diagnostic,
+            start
+        );
         if (status != JsonDecodingStatus::Succeeded) { return status; }
         if (cursor.IsAtEnd() || cursor.Current() != static_cast<std::uint8_t>('[')) {
             diagnostic.ByteOffset = start;
@@ -1854,7 +1920,11 @@ namespace ESPressio::Serialisation::Detail {
                 return JsonDecodingStatus::TypeMismatch;
             }
             if (index != 0U) {
-                status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>(','), diagnostic);
+                status = ConsumeJsonByte(
+                    cursor,
+                    static_cast<std::uint8_t>(','),
+                    diagnostic
+                );
                 if (status != JsonDecodingStatus::Succeeded) { return status; }
                 SkipJsonWhitespace(cursor);
             }
@@ -1909,7 +1979,11 @@ namespace ESPressio::Serialisation::Detail {
         Diagnostic& diagnostic
     ) noexcept {
         const auto start = cursor.Position();
-        auto status = EnterJsonContainer<TParserLimits>(depth, diagnostic, start);
+        auto status = EnterJsonContainer<TParserLimits>(
+            depth,
+            diagnostic,
+            start
+        );
         if (status != JsonDecodingStatus::Succeeded) { return status; }
         if (cursor.IsAtEnd() || cursor.Current() != static_cast<std::uint8_t>('[')) {
             diagnostic.ByteOffset = start;
@@ -1956,30 +2030,14 @@ namespace ESPressio::Serialisation::Detail {
                 cursor.Advance();
                 return JsonDecodingStatus::Succeeded;
             }
-            status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>(','), diagnostic);
+            status = ConsumeJsonByte(
+                cursor,
+                static_cast<std::uint8_t>(','),
+                diagnostic
+            );
             if (status != JsonDecodingStatus::Succeeded) { return status; }
             SkipJsonWhitespace(cursor);
         }
-    }
-
-    /// Reports whether a schema Field identifier bit has already been observed.
-    [[nodiscard]] inline bool IsFieldSeen(
-        const std::array<std::uint8_t, 32U>& seen,
-        System::FieldIdentifier identifier
-    ) noexcept {
-        const auto value = identifier.Value();
-        return (seen[value / 8U] & static_cast<std::uint8_t>(1U << (value % 8U))) != 0U;
-    }
-
-    /// Marks one schema Field identifier as observed.
-    inline void MarkFieldSeen(
-        std::array<std::uint8_t, 32U>& seen,
-        System::FieldIdentifier identifier
-    ) noexcept {
-        const auto value = identifier.Value();
-        seen[value / 8U] = static_cast<std::uint8_t>(
-            seen[value / 8U] | static_cast<std::uint8_t>(1U << (value % 8U))
-        );
     }
 
     /// Dispatches one runtime FieldIdentifier to its compile-time schema binding.
@@ -2044,7 +2102,12 @@ namespace ESPressio::Serialisation::Detail {
                     SkipJsonWhitespace(cursor);
                     if (!cursor.IsAtEnd() && cursor.Current() == static_cast<std::uint8_t>('n')) {
                         const auto nullStart = cursor.Position();
-                        const auto nullStatus = ConsumeJsonLiteral(cursor, "null", 4U, diagnostic);
+                        const auto nullStatus = ConsumeJsonLiteral(
+                            cursor,
+                            "null",
+                            4U,
+                            diagnostic
+                        );
                         if (nullStatus != JsonDecodingStatus::Succeeded) {
                             diagnostic.ByteOffset = nullStart;
                             diagnostic.Type = TValue::Identifier;
@@ -2109,7 +2172,7 @@ namespace ESPressio::Serialisation::Detail {
     /// @tparam TValue Schema owner Type.
     template<bool TPopulate, class TValue>
     JsonDecodingStatus FinaliseJsonSchemaPresence(
-        const std::array<std::uint8_t, 32U>& seen,
+        const SchemaFieldPresenceSet& seen,
         TValue* destination,
         Diagnostic& diagnostic
     ) noexcept {
@@ -2117,7 +2180,10 @@ namespace ESPressio::Serialisation::Detail {
         System::ForEachField<TValue>([&]<class TField>() constexpr {
             if (status != JsonDecodingStatus::Succeeded) { return; }
             using FieldValue = std::remove_cv_t<System::FieldValueOf<TField>>;
-            const bool present = IsFieldSeen(seen, TField::Identifier);
+            const bool present = IsSchemaFieldSeen(
+                seen,
+                TField::Identifier
+            );
 
             if constexpr (OptionalValueTraits<FieldValue>::IsValue) {
                 if constexpr (TPopulate) {
@@ -2155,7 +2221,11 @@ namespace ESPressio::Serialisation::Detail {
         Diagnostic& diagnostic
     ) noexcept {
         const auto start = cursor.Position();
-        auto status = EnterJsonContainer<TParserLimits>(depth, diagnostic, start);
+        auto status = EnterJsonContainer<TParserLimits>(
+            depth,
+            diagnostic,
+            start
+        );
         if (status != JsonDecodingStatus::Succeeded) { return status; }
         if (cursor.IsAtEnd() || cursor.Current() != static_cast<std::uint8_t>('{')) {
             diagnostic.ByteOffset = start;
@@ -2164,27 +2234,45 @@ namespace ESPressio::Serialisation::Detail {
         cursor.Advance();
         SkipJsonWhitespace(cursor);
 
-        std::array<std::uint8_t, 32U> seen{};
+        SchemaFieldPresenceSet seen{};
         if (!cursor.IsAtEnd() && cursor.Current() == static_cast<std::uint8_t>('}')) {
             cursor.Advance();
-            return FinaliseJsonSchemaPresence<TPopulate>(seen, destination, diagnostic);
+            return FinaliseJsonSchemaPresence<TPopulate>(
+                seen,
+                destination,
+                diagnostic
+            );
         }
 
         while (true) {
             const auto keyStart = cursor.Position();
             System::FieldIdentifier identifier{0U};
-            status = ParseJsonNumericFieldKey(cursor, identifier, diagnostic);
+            status = ParseJsonNumericFieldKey(
+                cursor,
+                identifier,
+                diagnostic
+            );
             if (status != JsonDecodingStatus::Succeeded) { return status; }
-            if (IsFieldSeen(seen, identifier)) {
+            if (IsSchemaFieldSeen(
+                seen,
+                identifier
+            )) {
                 diagnostic.ByteOffset = keyStart;
                 diagnostic.Type = TValue::Identifier;
                 diagnostic.Field = identifier;
                 return JsonDecodingStatus::DuplicateField;
             }
-            MarkFieldSeen(seen, identifier);
+            MarkSchemaFieldSeen(
+                seen,
+                identifier
+            );
 
             SkipJsonWhitespace(cursor);
-            status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>(':'), diagnostic);
+            status = ConsumeJsonByte(
+                cursor,
+                static_cast<std::uint8_t>(':'),
+                diagnostic
+            );
             if (status != JsonDecodingStatus::Succeeded) { return status; }
             SkipJsonWhitespace(cursor);
 
@@ -2226,9 +2314,17 @@ namespace ESPressio::Serialisation::Detail {
             SkipJsonWhitespace(cursor);
             if (!cursor.IsAtEnd() && cursor.Current() == static_cast<std::uint8_t>('}')) {
                 cursor.Advance();
-                return FinaliseJsonSchemaPresence<TPopulate>(seen, destination, diagnostic);
+                return FinaliseJsonSchemaPresence<TPopulate>(
+                    seen,
+                    destination,
+                    diagnostic
+                );
             }
-            status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>(','), diagnostic);
+            status = ConsumeJsonByte(
+                cursor,
+                static_cast<std::uint8_t>(','),
+                diagnostic
+            );
             if (status != JsonDecodingStatus::Succeeded) { return status; }
             SkipJsonWhitespace(cursor);
         }
@@ -2269,12 +2365,22 @@ namespace ESPressio::Serialisation::Detail {
         if constexpr (std::is_same_v<Value, bool>) {
             const auto start = cursor.Position();
             if (cursor.Current() == static_cast<std::uint8_t>('t')) {
-                const auto status = ConsumeJsonLiteral(cursor, "true", 4U, diagnostic);
+                const auto status = ConsumeJsonLiteral(
+                    cursor,
+                    "true",
+                    4U,
+                    diagnostic
+                );
                 if (status == JsonDecodingStatus::Succeeded && TPopulate) { *destination = true; }
                 return status;
             }
             if (cursor.Current() == static_cast<std::uint8_t>('f')) {
-                const auto status = ConsumeJsonLiteral(cursor, "false", 5U, diagnostic);
+                const auto status = ConsumeJsonLiteral(
+                    cursor,
+                    "false",
+                    5U,
+                    diagnostic
+                );
                 if (status == JsonDecodingStatus::Succeeded && TPopulate) { *destination = false; }
                 return status;
             }
@@ -2289,10 +2395,19 @@ namespace ESPressio::Serialisation::Detail {
                 return JsonDecodingStatus::TypeMismatch;
             }
             JsonNumberToken token{};
-            auto status = ParseJsonNumberToken(cursor, token, diagnostic);
+            auto status = ParseJsonNumberToken(
+                cursor,
+                token,
+                diagnostic
+            );
             if (status != JsonDecodingStatus::Succeeded) { return status; }
             Value converted{};
-            status = ConvertJsonIntegerToken(cursor, token, converted, diagnostic);
+            status = ConvertJsonIntegerToken(
+                cursor,
+                token,
+                converted,
+                diagnostic
+            );
             if (status == JsonDecodingStatus::Succeeded && TPopulate) { *destination = converted; }
             return status;
         } else if constexpr (IsSupportedFloatingPoint<Value>) {
@@ -2304,10 +2419,19 @@ namespace ESPressio::Serialisation::Detail {
                 return JsonDecodingStatus::TypeMismatch;
             }
             JsonNumberToken token{};
-            auto status = ParseJsonNumberToken(cursor, token, diagnostic);
+            auto status = ParseJsonNumberToken(
+                cursor,
+                token,
+                diagnostic
+            );
             if (status != JsonDecodingStatus::Succeeded) { return status; }
             Value converted{};
-            status = ConvertJsonFloatingToken(cursor, token, converted, diagnostic);
+            status = ConvertJsonFloatingToken(
+                cursor,
+                token,
+                converted,
+                diagnostic
+            );
             if (status == JsonDecodingStatus::Succeeded && TPopulate) { *destination = converted; }
             return status;
         } else if constexpr (std::is_enum_v<Value>) {
@@ -2321,9 +2445,18 @@ namespace ESPressio::Serialisation::Detail {
                 return JsonDecodingStatus::TypeMismatch;
             }
             JsonNumberToken token{};
-            auto status = ParseJsonNumberToken(cursor, token, diagnostic);
+            auto status = ParseJsonNumberToken(
+                cursor,
+                token,
+                diagnostic
+            );
             if (status != JsonDecodingStatus::Succeeded) { return status; }
-            status = ConvertJsonIntegerToken(cursor, token, converted, diagnostic);
+            status = ConvertJsonIntegerToken(
+                cursor,
+                token,
+                converted,
+                diagnostic
+            );
             if (status == JsonDecodingStatus::Succeeded && TPopulate) {
                 *destination = static_cast<Value>(converted);
             }
@@ -2331,7 +2464,12 @@ namespace ESPressio::Serialisation::Detail {
         } else if constexpr (OptionalValueTraits<Value>::IsValue) {
             if (cursor.Current() == static_cast<std::uint8_t>('n')) {
                 const auto start = cursor.Position();
-                const auto status = ConsumeJsonLiteral(cursor, "null", 4U, diagnostic);
+                const auto status = ConsumeJsonLiteral(
+                    cursor,
+                    "null",
+                    4U,
+                    diagnostic
+                );
                 if (status != JsonDecodingStatus::Succeeded) {
                     diagnostic.ByteOffset = start;
                     return status;
@@ -2387,13 +2525,21 @@ namespace ESPressio::Serialisation::Detail {
                 diagnostic.ByteOffset = cursor.Position();
                 return JsonDecodingStatus::TypeMismatch;
             }
-            return DecodeJsonBoundedString<TPopulate>(cursor, destination, diagnostic);
+            return DecodeJsonBoundedString<TPopulate>(
+                cursor,
+                destination,
+                diagnostic
+            );
         } else if constexpr (BoundedBytesTraits<Value>::IsValue) {
             if (cursor.Current() != static_cast<std::uint8_t>('"')) {
                 diagnostic.ByteOffset = cursor.Position();
                 return JsonDecodingStatus::TypeMismatch;
             }
-            return DecodeJsonBoundedBytes<TPopulate>(cursor, destination, diagnostic);
+            return DecodeJsonBoundedBytes<TPopulate>(
+                cursor,
+                destination,
+                diagnostic
+            );
         } else if constexpr (BoundedVectorTraits<Value>::IsValue) {
             return DecodeJsonVector<TPopulate, TStrictness, TParserLimits>(
                 fieldPolicy,
@@ -2427,20 +2573,29 @@ namespace ESPressio::Serialisation::Detail {
 
             using Adapter = Bounded::TypeConversionAdapter<Representation, Value>;
             if constexpr (TPopulate) {
-                const auto result = Adapter::Convert(representation, *destination);
+                const auto result = Adapter::Convert(
+                    representation,
+                    *destination
+                );
                 if (!Bounded::IsTypeConversionSuccessful<Representation, Value>(result)) {
                     return JsonDecodingStatus::AdaptationFailed;
                 }
             } else if constexpr (std::is_nothrow_default_constructible_v<Value>) {
                 Value validationTarget{};
-                const auto result = Adapter::Convert(representation, validationTarget);
+                const auto result = Adapter::Convert(
+                    representation,
+                    validationTarget
+                );
                 if (!Bounded::IsTypeConversionSuccessful<Representation, Value>(result)) {
                     return JsonDecodingStatus::AdaptationFailed;
                 }
             } else {
                 if (destination == nullptr) { return JsonDecodingStatus::AdaptationFailed; }
                 Value validationTarget{*destination};
-                const auto result = Adapter::Convert(representation, validationTarget);
+                const auto result = Adapter::Convert(
+                    representation,
+                    validationTarget
+                );
                 if (!Bounded::IsTypeConversionSuccessful<Representation, Value>(result)) {
                     return JsonDecodingStatus::AdaptationFailed;
                 }

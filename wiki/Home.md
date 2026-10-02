@@ -6,7 +6,7 @@ It deliberately does **not** own semantic Type/Field identity (`EDP-System`), bo
 
 The consumer entry point is `src/ESPressio_Serialisation.hpp`.
 
-Direct production dependencies are `EDP-System`, `EDP-BoundedTypes`, `EDP-Memory`, `EDP-Platform-Portable`, and `EDP-Localisation`; the Memory/Portable edges are direct because JSON and CBOR caller-buffer output share the ByteOperations contract/default provider.
+Direct production dependencies are `EDP-System`, `EDP-BoundedTypes`, `EDP-BoundedTopology`, `EDP-Memory`, `EDP-Platform-Portable`, and `EDP-Localisation`; the Memory/Portable edges are direct because JSON and CBOR caller-buffer output share the ByteOperations contract/default provider.
 
 ## Navigation
 

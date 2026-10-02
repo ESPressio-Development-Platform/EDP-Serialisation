@@ -1,10 +1,29 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
 #include <ESPressio_Serialisation.hpp>
 
 namespace Demo {
+
+    /// Result family for one demonstrated CBOR round trip.
+    enum class RoundTripResult : std::uint8_t {
+
+        /// Encoding and transactional decoding both succeeded.
+        Succeeded = 0U,
+
+        /// Source preparation failed.
+        SourcePreparationFailed = 1U,
+
+        /// Serialisation failed.
+        SerialisationFailed = 2U,
+
+        /// Deserialisation failed.
+        DeserialisationFailed = 3U
+
+    };
+
 
     /// Small identified schema demonstrating deterministic CBOR Numeric execution.
     struct Packet final {
@@ -38,78 +57,111 @@ namespace Demo {
 
     };
 
-    /// Encodes and transactionally decodes one CBOR Typed Envelope.
+
+    /// Encodes and transactionally decodes one CBOR root representation.
     ///
-    /// @param output Caller-owned output buffer.
-    /// @param outputCapacity Writable output capacity in bytes.
+    /// @tparam TRootProfile Known-Type Body or Typed Envelope root to demonstrate.
+    /// @param output Caller-owned output byte span.
     /// @param decoded Existing destination populated only after full validation succeeds.
-    /// @return Number of encoded bytes, or zero when either operation fails.
-    std::size_t RoundTrip(
-        std::uint8_t* output,
-        std::size_t outputCapacity,
-        Packet& decoded
+    /// @param encodedBytes Receives the exact encoded byte count only on success.
+    /// @return Strongly typed round-trip outcome.
+    template<ESPressio::Serialisation::RootProfile TRootProfile>
+    RoundTripResult RoundTrip(
+        std::span<std::byte> output,
+        Packet& decoded,
+        std::size_t& encodedBytes
     ) noexcept {
         Packet source{};
         source.Sequence = 1000U;
+
         if (
             source.Label.Assign("cbor") !=
             ESPressio::Bounded::StringAssignmentResult::Succeeded
         ) {
-            return 0U;
+            return RoundTripResult::SourcePreparationFailed;
         }
+
         const std::uint8_t payload[]{0x01U, 0xFEU};
         if (
-            source.Payload.Assign(payload, sizeof(payload)) !=
-            ESPressio::Bounded::BytesAssignmentResult::Succeeded
+            source.Payload.Assign(
+                payload,
+                sizeof(payload)
+            ) != ESPressio::Bounded::BytesAssignmentResult::Succeeded
         ) {
-            return 0U;
+            return RoundTripResult::SourcePreparationFailed;
         }
 
         const auto encoded = ESPressio::Serialisation::Serialise<
             ESPressio::Serialisation::Cbor,
-            ESPressio::Serialisation::RootProfile::TypedEnvelope
+            TRootProfile
         >(
             source,
-            output,
-            outputCapacity
+            output
         );
-        if (!encoded.IsSuccessful()) { return 0U; }
+        if (!encoded.IsSuccessful()) {
+            return RoundTripResult::SerialisationFailed;
+        }
 
         const auto decodedResult = ESPressio::Serialisation::Deserialise<
             ESPressio::Serialisation::Cbor,
-            ESPressio::Serialisation::RootProfile::TypedEnvelope
+            TRootProfile
         >(
-            output,
-            encoded.BytesWritten,
+            std::span<const std::byte>{
+                output.data(),
+                encoded.BytesWritten
+            },
             decoded
         );
-        return decodedResult.IsSuccessful()
-            ? encoded.BytesWritten
-            : 0U;
+        if (!decodedResult.IsSuccessful()) {
+            return RoundTripResult::DeserialisationFailed;
+        }
+
+        encodedBytes = encoded.BytesWritten;
+        return RoundTripResult::Succeeded;
     }
 
 } // Demo
 
 #include <cstdio>
 
-/// Executes the CBOR round-trip once from the ESP-IDF application entry point.
+/// Executes both supported CBOR Numeric root profiles once from the ESP-IDF application entry point.
 extern "C" void app_main() {
-    std::array<std::uint8_t, 96U> output{};
-    Demo::Packet decoded{};
-    const auto bytes = Demo::RoundTrip(
-        output.data(),
-        output.size(),
-        decoded
+    std::array<std::byte, 96U> output{};
+    Demo::Packet knownTypeDecoded{};
+    Demo::Packet envelopeDecoded{};
+    std::size_t knownTypeBytes = 0U;
+    std::size_t envelopeBytes = 0U;
+
+    const auto knownTypeResult = Demo::RoundTrip<
+        ESPressio::Serialisation::RootProfile::KnownTypeBody
+    >(
+        output,
+        knownTypeDecoded,
+        knownTypeBytes
     );
-    if (bytes == 0U) {
-        std::printf("CBOR round-trip failed\n");
+    if (knownTypeResult != Demo::RoundTripResult::Succeeded) {
+        std::printf("CBOR Known-Type Body round-trip failed\n");
         return;
     }
+
+    const auto envelopeResult = Demo::RoundTrip<
+        ESPressio::Serialisation::RootProfile::TypedEnvelope
+    >(
+        output,
+        envelopeDecoded,
+        envelopeBytes
+    );
+    if (envelopeResult != Demo::RoundTripResult::Succeeded) {
+        std::printf("CBOR Typed Envelope round-trip failed\n");
+        return;
+    }
+
     std::printf(
-        "encoded bytes=%u decoded label=%s sequence=%u payload=%u\n",
-        static_cast<unsigned>(bytes),
-        decoded.Label.CStr(),
-        static_cast<unsigned>(decoded.Sequence),
-        static_cast<unsigned>(decoded.Payload.Size())
+        "known-type=%u envelope=%u label=%s sequence=%u payload=%u\n",
+        static_cast<unsigned>(knownTypeBytes),
+        static_cast<unsigned>(envelopeBytes),
+        envelopeDecoded.Label.CStr(),
+        static_cast<unsigned>(envelopeDecoded.Sequence),
+        static_cast<unsigned>(envelopeDecoded.Payload.Size())
     );
 }

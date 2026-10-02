@@ -4,6 +4,7 @@
 #include <optional>
 
 #include <ESPressio_Serialisation.hpp>
+#include <span>
 
 namespace Demo {
 
@@ -183,14 +184,18 @@ namespace Demo {
             ESPressio::Serialisation::RootProfile::KnownTypeBody,
             ESPressio::Serialisation::FieldProfile::LocalisedText
         >(
-            source,
-            output,
-            outputCapacity,
-            resolver,
-            context,
-            fieldScratch,
-            comparisonScratch
-        );
+        source,
+        std::as_writable_bytes(
+            std::span{
+                output,
+                outputCapacity
+            }
+        ),
+        resolver,
+        context,
+        fieldScratch,
+        comparisonScratch
+    );
         if (!encoded.IsSuccessful()) { return 0U; }
 
         const auto decodedResult = ESPressio::Serialisation::Deserialise<
@@ -198,13 +203,17 @@ namespace Demo {
             ESPressio::Serialisation::RootProfile::KnownTypeBody,
             ESPressio::Serialisation::FieldProfile::LocalisedText
         >(
-            output,
-            encoded.BytesWritten,
-            decoded,
-            resolver,
-            context,
-            fieldScratch
-        );
+        std::as_bytes(
+            std::span{
+                output,
+                encoded.BytesWritten
+            }
+        ),
+        decoded,
+        resolver,
+        context,
+        fieldScratch
+    );
         return decodedResult.IsSuccessful() ? encoded.BytesWritten : 0U;
     }
 
@@ -217,7 +226,11 @@ namespace Demo {
 extern "C" void app_main() {
     std::array<std::uint8_t, 128U> output{};
     Demo::Reading decoded{};
-    const auto bytes = Demo::RoundTrip(output.data(), output.size(), decoded);
+    const auto bytes = Demo::RoundTrip(
+        output.data(),
+        output.size(),
+        decoded
+    );
     if (bytes == 0U) {
         std::printf("LocalisedText round-trip failed\n");
         return;

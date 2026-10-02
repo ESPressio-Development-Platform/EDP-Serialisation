@@ -18,7 +18,7 @@ Serialisation encoding/decoding consumes bounded `String`, `Bytes`, and `Vector`
 
 **Kind:** mandatory direct contract dependency.
 
-JSON/CBOR decode add no new direct dependency edge. `EncodingBufferSink` validates the selected provider through `Memory::Detail::ByteOperationsProviderTraits` and delegates JSON/CBOR byte-range writes to the provider's `CopyBytes`. Serialisation therefore does not implement a parallel `memcpy`/hand-written raw-copy abstraction. The provider is compile-time selected and no provider pointer/object is retained by a sink.
+Schema decode now directly reuses `EDP-BoundedTopology::BoundedIndexSet`, so `EDP-BoundedTopology` is a mandatory direct dependency in addition to the existing codec/output dependencies. `EncodingBufferSink` validates the selected provider through `Memory::Detail::ByteOperationsProviderTraits` and delegates JSON/CBOR byte-range writes to the provider's `CopyBytes`. Serialisation therefore does not implement a parallel `memcpy`/hand-written raw-copy abstraction. The provider is compile-time selected and no provider pointer/object is retained by a sink.
 
 ## Production dependency: EDP-Platform-Portable
 
@@ -26,7 +26,7 @@ JSON/CBOR decode add no new direct dependency edge. `EncodingBufferSink` validat
 
 `Platform::Portable::Memory::ByteOperationsProvider` is the default compile-time provider for `Serialise`. It is stateless and nothrow default-constructible. The public operation exposes the provider as a template parameter, allowing another provider satisfying the EDP-Memory contract to be selected without runtime registry/state.
 
-Platform-Portable itself depends on EDP-Platform and EDP-Memory. EDP-Memory depends on System, Platform, and BoundedTopology. These remain transitive unless Serialisation source begins consuming their contracts directly.
+Platform-Portable itself depends on EDP-Platform and EDP-Memory. EDP-Memory depends on System, Platform, and BoundedTopology. Platform remains transitive; BoundedTopology is also a direct Serialisation dependency because schema presence tracking consumes its public `BoundedIndexSet` contract.
 
 ## Production dependency: EDP-Localisation
 
@@ -36,7 +36,7 @@ LocalisedText production source consumes `LanguageIdentifierView`, `Localisation
 
 ## Demo/build dependencies
 
-Every PlatformIO demo project consumes the local `EDP-Serialisation` library plus explicit `EDP-System`, `EDP-BoundedTypes`, and `EDP-Localisation` dependencies because the public Serialisation umbrella includes Localisation-backed profile support. PlatformIO resolves Serialisation's direct Memory/Platform-Portable metadata and the remaining transitive graph. `library.properties` declares all five direct Serialisation dependencies in the `0.1.x` range.
+Every PlatformIO-format demo project built with PIOArduino consumes the local `EDP-Serialisation` library plus explicit `EDP-System`, `EDP-BoundedTypes`, and `EDP-Localisation` dependencies because the public Serialisation umbrella includes Localisation-backed profile support. PIOArduino resolves Serialisation's direct BoundedTopology/Memory/Platform-Portable metadata and the remaining transitive graph. `library.properties` declares all six direct Serialisation dependencies in the `0.1.x` range.
 
 
 ## Dependency direction invariant

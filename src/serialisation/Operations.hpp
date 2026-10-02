@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <type_traits>
 
 #include "CborDecoding.hpp"
@@ -639,8 +640,7 @@ namespace ESPressio::Serialisation {
     /// @tparam TByteOperationsProvider Stateless EDP-Memory byte-copy provider used for caller-buffer writes.
     /// @tparam TValue Serialisable source Type.
     /// @param value Source value to serialise.
-    /// @param output First byte of caller-owned output storage.
-    /// @param capacity Writable output capacity in bytes.
+    /// @param output Caller-owned writable output byte span.
     /// @return Exact required/written byte counts and operation-specific outcome.
     template<
         class TCodec,
@@ -651,8 +651,7 @@ namespace ESPressio::Serialisation {
     >
     SerialisationResult Serialise(
         const TValue& value,
-        std::uint8_t* output,
-        std::size_t capacity
+        std::span<std::byte> output
     ) noexcept {
         Detail::ValidateImplementedEncodingProfile<
             TCodec,
@@ -675,16 +674,7 @@ namespace ESPressio::Serialisation {
             };
         }
 
-        if (output == nullptr) {
-            return {
-                SerialisationStatus::InvalidArgument,
-                measurement.RequiredBytes,
-                0U,
-                {}
-            };
-        }
-
-        if (capacity < measurement.RequiredBytes) {
+        if (output.size() < measurement.RequiredBytes) {
             return {
                 SerialisationStatus::OutputBufferTooSmall,
                 measurement.RequiredBytes,
@@ -694,8 +684,8 @@ namespace ESPressio::Serialisation {
         }
 
         Detail::EncodingBufferSink<TByteOperationsProvider> sink{
-            output,
-            capacity
+            reinterpret_cast<std::uint8_t*>(output.data()),
+            output.size()
         };
         Diagnostic diagnostic{};
         const auto status = [&]() noexcept {
@@ -763,10 +753,9 @@ namespace ESPressio::Serialisation {
     /// @tparam TStrictness Unknown-Field handling policy.
     /// @tparam TParserLimits Compile-time nesting and unknown-skip resource policy.
     /// @tparam TValue Serialisable destination Type.
-    /// @param input First byte of caller-owned immutable JSON or CBOR input.
-    /// @param length Number of bytes in the complete caller-owned input range.
+    /// @param input Caller-owned immutable JSON or CBOR input byte span.
     /// @param destination Existing destination object populated only after complete validation succeeds.
-    /// @return Operation-specific outcome; BytesConsumed equals length only on success.
+    /// @return Operation-specific outcome; BytesConsumed equals input size only on success.
     template<
         class TCodec,
         RootProfile TRootProfile = RootProfile::KnownTypeBody,
@@ -776,8 +765,7 @@ namespace ESPressio::Serialisation {
         SerialisableType TValue
     >
     DeserialisationResult Deserialise(
-        const std::uint8_t* input,
-        std::size_t length,
+        std::span<const std::byte> input,
         TValue& destination
     ) noexcept {
         Detail::ValidateImplementedDecodingProfile<
@@ -786,29 +774,23 @@ namespace ESPressio::Serialisation {
             TFieldProfile
         >();
 
+        const auto* inputBytes = reinterpret_cast<const std::uint8_t*>(input.data());
+
         if constexpr (std::is_same_v<TCodec, Cbor>) {
             return Detail::DeserialiseCbor<
                 TRootProfile,
                 TStrictness,
                 TParserLimits
             >(
-                input,
-                length,
+                inputBytes,
+                input.size(),
                 destination
             );
         }
 
-        if (input == nullptr) {
-            return {
-                DeserialisationStatus::InvalidArgument,
-                0U,
-                {}
-            };
-        }
-
         Detail::JsonInputCursor validationCursor{
-            input,
-            length
+            inputBytes,
+            input.size()
         };
         Detail::JsonSkipState validationSkipState{};
         Diagnostic validationDiagnostic{};
@@ -865,8 +847,8 @@ namespace ESPressio::Serialisation {
         }
 
         Detail::JsonInputCursor populationCursor{
-            input,
-            length
+            inputBytes,
+            input.size()
         };
         Detail::JsonSkipState populationSkipState{};
         Diagnostic populationDiagnostic{};
@@ -908,7 +890,7 @@ namespace ESPressio::Serialisation {
         Detail::SkipJsonWhitespace(populationCursor);
         return {
             DeserialisationStatus::Succeeded,
-            length,
+            input.size(),
             {}
         };
     }
@@ -953,7 +935,10 @@ namespace ESPressio::Serialisation {
         if (
             !Detail::IsLocalisedScratchValid(fieldNameScratch) ||
             !Detail::IsLocalisedScratchValid(comparisonScratch) ||
-            !Detail::AreLocalisedScratchViewsIndependent(fieldNameScratch, comparisonScratch)
+            !Detail::AreLocalisedScratchViewsIndependent(
+                fieldNameScratch,
+                comparisonScratch
+            )
         ) {
             return {MeasurementStatus::InvalidArgument, 0U, {}};
         }
@@ -1028,8 +1013,7 @@ namespace ESPressio::Serialisation {
     /// @tparam TResolver Concrete EDP-Localisation Resolver-compatible Type.
     /// @tparam TValue Serialisable source Type.
     /// @param value Source value to serialise.
-    /// @param output First byte of caller-owned output storage.
-    /// @param capacity Writable output capacity in bytes.
+    /// @param output Caller-owned writable output byte span.
     /// @param resolver Caller-owned forward/reverse Localisation service.
     /// @param context Requested/terminal language policy applied to every represented schema object.
     /// @param fieldNameScratch Caller-owned UTF-8 scratch for the current resolved Field name.
@@ -1045,8 +1029,7 @@ namespace ESPressio::Serialisation {
     >
     SerialisationResult Serialise(
         const TValue& value,
-        std::uint8_t* output,
-        std::size_t capacity,
+        std::span<std::byte> output,
         const TResolver& resolver,
         const Localisation::LocalisationContext& context,
         Localisation::WritableTextView fieldNameScratch,
@@ -1076,15 +1059,7 @@ namespace ESPressio::Serialisation {
                 measurement.Detail
             };
         }
-        if (output == nullptr) {
-            return {
-                SerialisationStatus::InvalidArgument,
-                measurement.RequiredBytes,
-                0U,
-                {}
-            };
-        }
-        if (capacity < measurement.RequiredBytes) {
+        if (output.size() < measurement.RequiredBytes) {
             return {
                 SerialisationStatus::OutputBufferTooSmall,
                 measurement.RequiredBytes,
@@ -1099,7 +1074,10 @@ namespace ESPressio::Serialisation {
             fieldNameScratch,
             comparisonScratch
         };
-        Detail::EncodingBufferSink<TByteOperationsProvider> sink{output, capacity};
+        Detail::EncodingBufferSink<TByteOperationsProvider> sink{
+            reinterpret_cast<std::uint8_t*>(output.data()),
+            output.size()
+        };
         Diagnostic diagnostic{};
         const auto status = [&]() noexcept {
             if constexpr (TRootProfile == RootProfile::TypedEnvelope) {
@@ -1146,8 +1124,7 @@ namespace ESPressio::Serialisation {
     /// @tparam TParserLimits Compile-time parser resource policy.
     /// @tparam TResolver Concrete EDP-Localisation Resolver-compatible Type.
     /// @tparam TValue Serialisable destination Type.
-    /// @param input First immutable caller-owned JSON byte.
-    /// @param length Complete caller-owned input length.
+    /// @param input Caller-owned immutable JSON input byte span.
     /// @param destination Existing destination populated only after complete validation succeeds.
     /// @param resolver Caller-owned forward/reverse Localisation service.
     /// @param context Requested/terminal language policy; embedded metadata must match RequestedLanguage.
@@ -1163,8 +1140,7 @@ namespace ESPressio::Serialisation {
         SerialisableType TValue
     >
     DeserialisationResult Deserialise(
-        const std::uint8_t* input,
-        std::size_t length,
+        std::span<const std::byte> input,
         TValue& destination,
         const TResolver& resolver,
         const Localisation::LocalisationContext& context,
@@ -1197,8 +1173,8 @@ namespace ESPressio::Serialisation {
             TStrictness,
             TParserLimits
         >(
-            input,
-            length,
+            reinterpret_cast<const std::uint8_t*>(input.data()),
+            input.size(),
             destination,
             fieldPolicy
         );
@@ -1216,8 +1192,7 @@ namespace ESPressio::Serialisation {
     /// @tparam TParserLimits Compile-time parser resource policy.
     /// @tparam TResolver Concrete EDP-Localisation Resolver-compatible Type.
     /// @tparam TValue Serialisable destination Type.
-    /// @param input First immutable caller-owned JSON byte.
-    /// @param length Complete caller-owned input length.
+    /// @param input Caller-owned immutable JSON input byte span.
     /// @param destination Existing destination populated only after complete validation succeeds.
     /// @param resolver Caller-owned forward/reverse Localisation service.
     /// @param terminalLanguage Canonical ContractFamily terminal fallback language.
@@ -1233,8 +1208,7 @@ namespace ESPressio::Serialisation {
         SerialisableType TValue
     >
     DeserialisationResult Deserialise(
-        const std::uint8_t* input,
-        std::size_t length,
+        std::span<const std::byte> input,
         TValue& destination,
         const TResolver& resolver,
         Localisation::LanguageIdentifierView terminalLanguage,
@@ -1267,8 +1241,8 @@ namespace ESPressio::Serialisation {
             TStrictness,
             TParserLimits
         >(
-            input,
-            length,
+            reinterpret_cast<const std::uint8_t*>(input.data()),
+            input.size(),
             destination,
             fieldPolicy
         );

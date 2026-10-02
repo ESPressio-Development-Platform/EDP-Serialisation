@@ -3,6 +3,7 @@
 #include <optional>
 
 #include <ESPressio_Serialisation.hpp>
+#include <span>
 
 namespace Demo {
 
@@ -77,10 +78,14 @@ namespace Demo {
         const auto result = ESPressio::Serialisation::Serialise<
             ESPressio::Serialisation::Json
         >(
-            reading,
-            output.data(),
-            output.size()
-        );
+        reading,
+        std::as_writable_bytes(
+            std::span{
+                output.data(),
+                output.size()
+            }
+        )
+    );
         bytesWritten = result.BytesWritten;
         return result;
     }

@@ -439,9 +439,17 @@ namespace ESPressio::Serialisation::Detail {
         hasEmbeddedLanguage = false;
         embeddedLanguageSize = 0U;
 
-        auto status = EnterJsonContainer<TParserLimits>(depth, diagnostic, cursor.Position());
+        auto status = EnterJsonContainer<TParserLimits>(
+            depth,
+            diagnostic,
+            cursor.Position()
+        );
         if (status != JsonDecodingStatus::Succeeded) { return status; }
-        status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>('{'), diagnostic);
+        status = ConsumeJsonByte(
+            cursor,
+            static_cast<std::uint8_t>('{'),
+            diagnostic
+        );
         if (status != JsonDecodingStatus::Succeeded) { return JsonDecodingStatus::TypeMismatch; }
         SkipJsonWhitespace(cursor);
         bool first = true;
@@ -449,7 +457,11 @@ namespace ESPressio::Serialisation::Detail {
 
         while (!cursor.IsAtEnd() && cursor.Current() != static_cast<std::uint8_t>('}')) {
             if (!first) {
-                status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>(','), diagnostic);
+                status = ConsumeJsonByte(
+                    cursor,
+                    static_cast<std::uint8_t>(','),
+                    diagnostic
+                );
                 if (status != JsonDecodingStatus::Succeeded) { return status; }
                 SkipJsonWhitespace(cursor);
             }
@@ -471,7 +483,11 @@ namespace ESPressio::Serialisation::Detail {
             );
 
             SkipJsonWhitespace(cursor);
-            status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>(':'), diagnostic);
+            status = ConsumeJsonByte(
+                cursor,
+                static_cast<std::uint8_t>(':'),
+                diagnostic
+            );
             if (status != JsonDecodingStatus::Succeeded) { return status; }
             SkipJsonWhitespace(cursor);
 
@@ -508,7 +524,11 @@ namespace ESPressio::Serialisation::Detail {
             SkipJsonWhitespace(cursor);
         }
 
-        status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>('}'), diagnostic);
+        status = ConsumeJsonByte(
+            cursor,
+            static_cast<std::uint8_t>('}'),
+            diagnostic
+        );
         if (status != JsonDecodingStatus::Succeeded) { return status; }
         return JsonDecodingStatus::Succeeded;
     }
@@ -625,14 +645,21 @@ namespace ESPressio::Serialisation::Detail {
         Diagnostic& diagnostic
     ) noexcept {
         if (languageSource == JsonLocalisedLanguageSource::AcrossLanguages) {
-            return policy.Resolver->ResolveFieldIdentifierAcrossLanguages(type, fieldName);
+            return policy.Resolver->ResolveFieldIdentifierAcrossLanguages(
+                type,
+                fieldName
+            );
         }
         if (languageSource == JsonLocalisedLanguageSource::Caller) {
             const Localisation::LocalisationContext context{
                 *policy.CallerLanguage,
                 policy.TerminalLanguage
             };
-            return policy.Resolver->ResolveFieldIdentifier(context, type, fieldName);
+            return policy.Resolver->ResolveFieldIdentifier(
+                context,
+                type,
+                fieldName
+            );
         }
 
         std::array<char, std::numeric_limits<std::uint8_t>::max()> embeddedLanguage{};
@@ -667,7 +694,11 @@ namespace ESPressio::Serialisation::Detail {
             languageValidation.Value,
             policy.TerminalLanguage
         };
-        return policy.Resolver->ResolveFieldIdentifier(context, type, fieldName);
+        return policy.Resolver->ResolveFieldIdentifier(
+            context,
+            type,
+            fieldName
+        );
     }
 
     /// Maps one Localisation reverse-resolution outcome into the JSON decoder vocabulary.
@@ -741,18 +772,30 @@ namespace ESPressio::Serialisation::Detail {
             return status;
         }
 
-        status = EnterJsonContainer<TParserLimits>(depth, diagnostic, start);
+        status = EnterJsonContainer<TParserLimits>(
+            depth,
+            diagnostic,
+            start
+        );
         if (status != JsonDecodingStatus::Succeeded) { return status; }
-        status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>('{'), diagnostic);
+        status = ConsumeJsonByte(
+            cursor,
+            static_cast<std::uint8_t>('{'),
+            diagnostic
+        );
         if (status != JsonDecodingStatus::Succeeded) { return JsonDecodingStatus::TypeMismatch; }
         SkipJsonWhitespace(cursor);
         const auto objectContentStart = cursor.Position();
-        std::array<std::uint8_t, 32U> seen{};
+        SchemaFieldPresenceSet seen{};
         bool first = true;
 
         while (!cursor.IsAtEnd() && cursor.Current() != static_cast<std::uint8_t>('}')) {
             if (!first) {
-                status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>(','), diagnostic);
+                status = ConsumeJsonByte(
+                    cursor,
+                    static_cast<std::uint8_t>(','),
+                    diagnostic
+                );
                 if (status != JsonDecodingStatus::Succeeded) { return status; }
                 SkipJsonWhitespace(cursor);
             }
@@ -791,7 +834,11 @@ namespace ESPressio::Serialisation::Detail {
             );
 
             SkipJsonWhitespace(cursor);
-            status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>(':'), diagnostic);
+            status = ConsumeJsonByte(
+                cursor,
+                static_cast<std::uint8_t>(':'),
+                diagnostic
+            );
             if (status != JsonDecodingStatus::Succeeded) { return status; }
             SkipJsonWhitespace(cursor);
 
@@ -845,13 +892,19 @@ namespace ESPressio::Serialisation::Detail {
                         return JsonDecodingStatus::LocalisationFailure;
                     }
                     const auto identifier = *resolution.Field;
-                    if (IsFieldSeen(seen, identifier)) {
+                    if (IsSchemaFieldSeen(
+                        seen,
+                        identifier
+                    )) {
                         diagnostic.ByteOffset = keyStart;
                         diagnostic.Type = System::TypeIdentifierOf<TValue>;
                         diagnostic.Field = identifier;
                         return JsonDecodingStatus::DuplicateField;
                     }
-                    MarkFieldSeen(seen, identifier);
+                    MarkSchemaFieldSeen(
+                        seen,
+                        identifier
+                    );
 
                     bool knownField = false;
                     status = DecodeJsonSchemaField<
@@ -892,9 +945,17 @@ namespace ESPressio::Serialisation::Detail {
             SkipJsonWhitespace(cursor);
         }
 
-        status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>('}'), diagnostic);
+        status = ConsumeJsonByte(
+            cursor,
+            static_cast<std::uint8_t>('}'),
+            diagnostic
+        );
         if (status != JsonDecodingStatus::Succeeded) { return status; }
-        return FinaliseJsonSchemaPresence<TPopulate>(seen, destination, diagnostic);
+        return FinaliseJsonSchemaPresence<TPopulate>(
+            seen,
+            destination,
+            diagnostic
+        );
     }
 
 } // ESPressio::Serialisation::Detail

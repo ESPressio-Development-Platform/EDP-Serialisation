@@ -41,4 +41,4 @@ These overloads are selected by the generic policy-aware functions in `JsonEncod
 
 ## Resource invariants
 
-The header allocates no dynamic memory. Field-name storage is caller-owned. Metadata discovery uses one local language array bounded by the public `LanguageIdentifierView` byte domain and destroys it before recursive value decode. Schema duplicate identity continues to use the shared 32-byte FieldIdentifier bitmap plus replay for textual duplicate proof.
+The header allocates no dynamic memory. Field-name storage is caller-owned. Metadata discovery uses one local language array bounded by the public `LanguageIdentifierView` byte domain and destroys it before recursive value decode. Schema duplicate identity continues to use the shared 32-byte `SchemaFieldPresenceSet` backed by `EDP-BoundedTopology::BoundedIndexSet` plus replay for textual duplicate proof.

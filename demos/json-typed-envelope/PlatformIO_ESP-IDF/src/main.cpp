@@ -2,6 +2,7 @@
 #include <cstdint>
 
 #include <ESPressio_Serialisation.hpp>
+#include <span>
 
 namespace Demo {
 
@@ -43,7 +44,10 @@ namespace Demo {
         Packet& decoded
     ) noexcept {
         Packet source{};
-        if (source.Label.Assign("typed", 5U) != ESPressio::Bounded::StringAssignmentResult::Succeeded) {
+        if (source.Label.Assign(
+            "typed",
+            5U
+        ) != ESPressio::Bounded::StringAssignmentResult::Succeeded) {
             return 0U;
         }
         source.Sequence = 42U;
@@ -52,20 +56,28 @@ namespace Demo {
             ESPressio::Serialisation::Json,
             ESPressio::Serialisation::RootProfile::TypedEnvelope
         >(
-            source,
-            output,
-            outputCapacity
-        );
+        source,
+        std::as_writable_bytes(
+            std::span{
+                output,
+                outputCapacity
+            }
+        )
+    );
         if (!encoded.IsSuccessful()) { return 0U; }
 
         const auto decodedResult = ESPressio::Serialisation::Deserialise<
             ESPressio::Serialisation::Json,
             ESPressio::Serialisation::RootProfile::TypedEnvelope
         >(
-            output,
-            encoded.BytesWritten,
-            decoded
-        );
+        std::as_bytes(
+            std::span{
+                output,
+                encoded.BytesWritten
+            }
+        ),
+        decoded
+    );
         return decodedResult.IsSuccessful()
             ? encoded.BytesWritten
             : 0U;

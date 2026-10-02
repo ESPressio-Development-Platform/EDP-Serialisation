@@ -115,7 +115,11 @@ namespace ESPressio::Serialisation::Detail {
         Diagnostic& diagnostic
     ) noexcept {
         constexpr char Hex[] = "0123456789abcdef";
-        auto status = WriteJsonByte(sink, static_cast<std::uint8_t>('"'), diagnostic);
+        auto status = WriteJsonByte(
+            sink,
+            static_cast<std::uint8_t>('"'),
+            diagnostic
+        );
         if (status != JsonEncodingStatus::Succeeded) { return status; }
 
         for (const auto byte : identifier.Bytes()) {
@@ -123,10 +127,19 @@ namespace ESPressio::Serialisation::Detail {
                 Hex[(byte >> 4U) & 0x0FU],
                 Hex[byte & 0x0FU]
             };
-            status = WriteJsonBytes(sink, encoded, sizeof(encoded), diagnostic);
+            status = WriteJsonBytes(
+                sink,
+                encoded,
+                sizeof(encoded),
+                diagnostic
+            );
             if (status != JsonEncodingStatus::Succeeded) { return status; }
         }
-        return WriteJsonByte(sink, static_cast<std::uint8_t>('"'), diagnostic);
+        return WriteJsonByte(
+            sink,
+            static_cast<std::uint8_t>('"'),
+            diagnostic
+        );
     }
 
     /// Emits one canonical JSON Typed Envelope around an already supported body value.
@@ -146,15 +159,31 @@ namespace ESPressio::Serialisation::Detail {
         const TValue& value,
         Diagnostic& diagnostic
     ) noexcept {
-        static_assert(System::IdentifiedType<TValue>,
-            "Typed Envelope roots must satisfy System::IdentifiedType");
+        static_assert(
+            System::IdentifiedType<TValue>,
+            "Typed Envelope roots must satisfy System::IdentifiedType"
+        );
         constexpr char Prefix[] = "{\"$edp\":{\"v\":1,\"type\":";
         constexpr char Middle[] = "},\"value\":";
-        auto status = WriteJsonBytes(sink, Prefix, sizeof(Prefix) - 1U, diagnostic);
+        auto status = WriteJsonBytes(
+            sink,
+            Prefix,
+            sizeof(Prefix) - 1U,
+            diagnostic
+        );
         if (status != JsonEncodingStatus::Succeeded) { return status; }
-        status = EncodeJsonTypeIdentifier(sink, System::TypeIdentifierOf<TValue>, diagnostic);
+        status = EncodeJsonTypeIdentifier(
+            sink,
+            System::TypeIdentifierOf<TValue>,
+            diagnostic
+        );
         if (status != JsonEncodingStatus::Succeeded) { return status; }
-        status = WriteJsonBytes(sink, Middle, sizeof(Middle) - 1U, diagnostic);
+        status = WriteJsonBytes(
+            sink,
+            Middle,
+            sizeof(Middle) - 1U,
+            diagnostic
+        );
         if (status != JsonEncodingStatus::Succeeded) { return status; }
         status = EncodeJsonValueWithFieldPolicy(
             fieldPolicy,
@@ -163,7 +192,11 @@ namespace ESPressio::Serialisation::Detail {
             diagnostic
         );
         if (status != JsonEncodingStatus::Succeeded) { return status; }
-        return WriteJsonByte(sink, static_cast<std::uint8_t>('}'), diagnostic);
+        return WriteJsonByte(
+            sink,
+            static_cast<std::uint8_t>('}'),
+            diagnostic
+        );
     }
 
     /// Emits one canonical JSON Typed Envelope using numeric schema Field keys.
@@ -195,10 +228,19 @@ namespace ESPressio::Serialisation::Detail {
         Diagnostic& diagnostic
     ) noexcept {
         JsonNumberToken token{};
-        auto status = ParseJsonNumberToken(cursor, token, diagnostic);
+        auto status = ParseJsonNumberToken(
+            cursor,
+            token,
+            diagnostic
+        );
         if (status != JsonDecodingStatus::Succeeded) { return status; }
         std::uint8_t version = 0U;
-        status = ConvertJsonIntegerToken(cursor, token, version, diagnostic);
+        status = ConvertJsonIntegerToken(
+            cursor,
+            token,
+            version,
+            diagnostic
+        );
         if (status != JsonDecodingStatus::Succeeded || version != TypedEnvelopeVersion) {
             diagnostic.ByteOffset = token.Start;
             return JsonDecodingStatus::UnsupportedEnvelopeVersion;
@@ -212,8 +254,10 @@ namespace ESPressio::Serialisation::Detail {
         JsonInputCursor& cursor,
         Diagnostic& diagnostic
     ) noexcept {
-        static_assert(System::IdentifiedType<TValue>,
-            "Typed Envelope roots must satisfy System::IdentifiedType");
+        static_assert(
+            System::IdentifiedType<TValue>,
+            "Typed Envelope roots must satisfy System::IdentifiedType"
+        );
         const auto start = cursor.Position();
         const auto& expected = System::TypeIdentifierOf<TValue>.Bytes();
         std::size_t index = 0U;
@@ -269,9 +313,17 @@ namespace ESPressio::Serialisation::Detail {
         std::size_t depth,
         Diagnostic& diagnostic
     ) noexcept {
-        auto status = EnterJsonContainer<TParserLimits>(depth, diagnostic, cursor.Position());
+        auto status = EnterJsonContainer<TParserLimits>(
+            depth,
+            diagnostic,
+            cursor.Position()
+        );
         if (status != JsonDecodingStatus::Succeeded) { return status; }
-        status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>('{'), diagnostic);
+        status = ConsumeJsonByte(
+            cursor,
+            static_cast<std::uint8_t>('{'),
+            diagnostic
+        );
         if (status != JsonDecodingStatus::Succeeded) { return JsonDecodingStatus::TypeMismatch; }
         SkipJsonWhitespace(cursor);
         bool seenVersion = false;
@@ -280,13 +332,21 @@ namespace ESPressio::Serialisation::Detail {
 
         while (!cursor.IsAtEnd() && cursor.Current() != static_cast<std::uint8_t>('}')) {
             if (!first) {
-                status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>(','), diagnostic);
+                status = ConsumeJsonByte(
+                    cursor,
+                    static_cast<std::uint8_t>(','),
+                    diagnostic
+                );
                 if (status != JsonDecodingStatus::Succeeded) { return status; }
                 SkipJsonWhitespace(cursor);
             }
             first = false;
             JsonEnvelopeMetadataMember member = JsonEnvelopeMetadataMember::Unknown;
-            status = ParseJsonEnvelopeMetadataMember(cursor, member, diagnostic);
+            status = ParseJsonEnvelopeMetadataMember(
+                cursor,
+                member,
+                diagnostic
+            );
             if (status != JsonDecodingStatus::Succeeded) { return status; }
             if (member == JsonEnvelopeMetadataMember::Unknown) {
                 return JsonDecodingStatus::MalformedRepresentation;
@@ -295,16 +355,30 @@ namespace ESPressio::Serialisation::Detail {
             if (*seen) { return JsonDecodingStatus::DuplicateField; }
             *seen = true;
             SkipJsonWhitespace(cursor);
-            status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>(':'), diagnostic);
+            status = ConsumeJsonByte(
+                cursor,
+                static_cast<std::uint8_t>(':'),
+                diagnostic
+            );
             if (status != JsonDecodingStatus::Succeeded) { return status; }
             SkipJsonWhitespace(cursor);
             status = member == JsonEnvelopeMetadataMember::Version
-                ? DecodeJsonEnvelopeVersion(cursor, diagnostic)
-                : DecodeJsonEnvelopeTypeIdentifier<TValue>(cursor, diagnostic);
+                ? DecodeJsonEnvelopeVersion(
+                    cursor,
+                    diagnostic
+                )
+                : DecodeJsonEnvelopeTypeIdentifier<TValue>(
+                    cursor,
+                    diagnostic
+                );
             if (status != JsonDecodingStatus::Succeeded) { return status; }
             SkipJsonWhitespace(cursor);
         }
-        status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>('}'), diagnostic);
+        status = ConsumeJsonByte(
+            cursor,
+            static_cast<std::uint8_t>('}'),
+            diagnostic
+        );
         if (status != JsonDecodingStatus::Succeeded) { return status; }
         if (!seenVersion || !seenType) { return JsonDecodingStatus::MalformedRepresentation; }
         return JsonDecodingStatus::Succeeded;
@@ -337,12 +411,22 @@ namespace ESPressio::Serialisation::Detail {
         JsonSkipState& skipState,
         Diagnostic& diagnostic
     ) noexcept {
-        static_assert(System::IdentifiedType<TValue>,
-            "Typed Envelope roots must satisfy System::IdentifiedType");
+        static_assert(
+            System::IdentifiedType<TValue>,
+            "Typed Envelope roots must satisfy System::IdentifiedType"
+        );
         SkipJsonWhitespace(cursor);
-        auto status = EnterJsonContainer<TParserLimits>(0U, diagnostic, cursor.Position());
+        auto status = EnterJsonContainer<TParserLimits>(
+            0U,
+            diagnostic,
+            cursor.Position()
+        );
         if (status != JsonDecodingStatus::Succeeded) { return status; }
-        status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>('{'), diagnostic);
+        status = ConsumeJsonByte(
+            cursor,
+            static_cast<std::uint8_t>('{'),
+            diagnostic
+        );
         if (status != JsonDecodingStatus::Succeeded) { return JsonDecodingStatus::TypeMismatch; }
         SkipJsonWhitespace(cursor);
         bool seenEdp = false;
@@ -351,13 +435,21 @@ namespace ESPressio::Serialisation::Detail {
 
         while (!cursor.IsAtEnd() && cursor.Current() != static_cast<std::uint8_t>('}')) {
             if (!first) {
-                status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>(','), diagnostic);
+                status = ConsumeJsonByte(
+                    cursor,
+                    static_cast<std::uint8_t>(','),
+                    diagnostic
+                );
                 if (status != JsonDecodingStatus::Succeeded) { return status; }
                 SkipJsonWhitespace(cursor);
             }
             first = false;
             JsonEnvelopeRootMember member = JsonEnvelopeRootMember::Unknown;
-            status = ParseJsonEnvelopeRootMember(cursor, member, diagnostic);
+            status = ParseJsonEnvelopeRootMember(
+                cursor,
+                member,
+                diagnostic
+            );
             if (status != JsonDecodingStatus::Succeeded) { return status; }
             if (member == JsonEnvelopeRootMember::Unknown) {
                 return JsonDecodingStatus::MalformedRepresentation;
@@ -366,11 +458,19 @@ namespace ESPressio::Serialisation::Detail {
             if (*seen) { return JsonDecodingStatus::DuplicateField; }
             *seen = true;
             SkipJsonWhitespace(cursor);
-            status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>(':'), diagnostic);
+            status = ConsumeJsonByte(
+                cursor,
+                static_cast<std::uint8_t>(':'),
+                diagnostic
+            );
             if (status != JsonDecodingStatus::Succeeded) { return status; }
             SkipJsonWhitespace(cursor);
             status = member == JsonEnvelopeRootMember::Edp
-                ? DecodeJsonEnvelopeMetadata<TParserLimits, TValue>(cursor, 1U, diagnostic)
+                ? DecodeJsonEnvelopeMetadata<TParserLimits, TValue>(
+                    cursor,
+                    1U,
+                    diagnostic
+                )
                 : DecodeJsonValueWithFieldPolicy<TPopulate, TStrictness, TParserLimits>(
                     fieldPolicy,
                     cursor,
@@ -382,7 +482,11 @@ namespace ESPressio::Serialisation::Detail {
             if (status != JsonDecodingStatus::Succeeded) { return status; }
             SkipJsonWhitespace(cursor);
         }
-        status = ConsumeJsonByte(cursor, static_cast<std::uint8_t>('}'), diagnostic);
+        status = ConsumeJsonByte(
+            cursor,
+            static_cast<std::uint8_t>('}'),
+            diagnostic
+        );
         if (status != JsonDecodingStatus::Succeeded) { return status; }
         if (!seenEdp || !seenValue) { return JsonDecodingStatus::MalformedRepresentation; }
         return JsonDecodingStatus::Succeeded;

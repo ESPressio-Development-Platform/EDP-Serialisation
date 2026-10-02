@@ -112,23 +112,34 @@ jobs:
           && cmake --build tests/.cmake-build --parallel 2
           && tests/.cmake-build/EDP_Serialisation_HostTests
 
-  platformio:
+  pioarduino-demos:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - demos/type-qualification/PlatformIO_Arduino
+          - demos/type-qualification/PlatformIO_ESP-IDF
+          - demos/json-numeric-encoding/PlatformIO_Arduino
+          - demos/json-numeric-encoding/PlatformIO_ESP-IDF
+          - demos/json-numeric-decoding/PlatformIO_Arduino
+          - demos/json-numeric-decoding/PlatformIO_ESP-IDF
+          - demos/json-typed-envelope/PlatformIO_Arduino
+          - demos/json-typed-envelope/PlatformIO_ESP-IDF
+          - demos/json-localised-text/PlatformIO_Arduino
+          - demos/json-localised-text/PlatformIO_ESP-IDF
+          - demos/cbor-numeric/PlatformIO_Arduino
+          - demos/cbor-numeric/PlatformIO_ESP-IDF
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
-      - run: pip install platformio
-      - run: pio run -d demos/type-qualification/PlatformIO_Arduino
-      - run: pio run -d demos/type-qualification/PlatformIO_ESP-IDF
-      - run: pio run -d demos/json-numeric-encoding/PlatformIO_Arduino
-      - run: pio run -d demos/json-numeric-encoding/PlatformIO_ESP-IDF
-      - run: pio run -d demos/json-numeric-decoding/PlatformIO_Arduino
-      - run: pio run -d demos/json-numeric-decoding/PlatformIO_ESP-IDF
-      - run: pio run -d demos/json-typed-envelope/PlatformIO_Arduino
-      - run: pio run -d demos/json-typed-envelope/PlatformIO_ESP-IDF
-      - run: pio run -d demos/json-localised-text/PlatformIO_Arduino
-      - run: pio run -d demos/json-localised-text/PlatformIO_ESP-IDF
-      - run: pio run -d demos/cbor-numeric/PlatformIO_Arduino
-      - run: pio run -d demos/cbor-numeric/PlatformIO_ESP-IDF
+      - name: Install current PIOArduino Core
+        run: |
+          python3 -m pip install uv
+          curl -fsSL -o get-platformio.py https://raw.githubusercontent.com/pioarduino/pioarduino-core-installer/pioarduino/get-platformio.py
+          python3 get-platformio.py
+          echo "$HOME/.platformio/penv/bin" >> "$GITHUB_PATH"
+      - name: Build demo
+        run: pio run -d "${{ matrix.project }}"

@@ -48,8 +48,8 @@ Public foundation components:
 - operation-specific `MeasurementResult`, `SerialisationResult`, and `DeserialisationResult` families;
 - canonical adapters for `System::TypeIdentifier`, `FieldIdentifier`, `TypeAuthorityIdentifier`, and `TypeLocalIdentifier`;
 - `Measure<Json>(value)` / `Measure<Cbor>(value)` for exact canonical Numeric size/validation;
-- `Serialise<Json/Cbor>(value, output, capacity)` for Numeric Known-Type Body encoding;
-- `Deserialise<Json/Cbor>(input, length, destination)` for transactional Numeric Known-Type Body decoding;
+- `Serialise<Json/Cbor>(value, std::span<std::byte> output)` for Numeric Known-Type Body encoding;
+- `Deserialise<Json/Cbor>(std::span<const std::byte> input, destination)` for transactional Numeric Known-Type Body decoding;
 - `Measure` / `Serialise` / `Deserialise` with `RootProfile::TypedEnvelope` for identified JSON or CBOR roots carrying envelope version and canonical root `TypeIdentifier`;
 - LocalisedText overloads for both root profiles using caller-owned `EDP-Localisation` Resolver/context/scratch state, reserved `RFC5646` metadata, exact collision detection and transactional reverse Field resolution.
 
@@ -59,11 +59,69 @@ The V1 contract is defined in terms of the fixed-width C++ Types `std::int8_t` t
 
 ## Dependencies
 
-Direct dependencies are `EDP-System`, `EDP-BoundedTypes`, `EDP-Memory`, `EDP-Platform-Portable`, and `EDP-Localisation`. `EDP-Memory` owns the ByteOperations contract and `EDP-Platform-Portable` provides the default stateless implementation used by caller-buffer writes. See [DEPENDENCY_GRAPH.MD](./DEPENDENCY_GRAPH.MD).
+The complete mandatory/conditional ESPressio dependency tree is:
+
+```text
+EDP-Serialisation
+├── EDP-System [mandatory]
+├── EDP-BoundedTypes [mandatory]
+│   ├── EDP-Memory [mandatory]
+│   │   ├── EDP-System [mandatory]
+│   │   ├── EDP-Platform [mandatory]
+│   │   │   └── EDP-System [mandatory, transitive]
+│   │   └── EDP-BoundedTopology [mandatory]
+│   └── EDP-Platform-Portable [mandatory]
+│       ├── EDP-Platform [mandatory]
+│       │   └── EDP-System [mandatory]
+│       └── EDP-Memory [mandatory]
+│           ├── EDP-System [mandatory]
+│           ├── EDP-Platform [mandatory]
+│           │   └── EDP-System [mandatory, transitive]
+│           └── EDP-BoundedTopology [mandatory]
+├── EDP-BoundedTopology [mandatory]
+├── EDP-Memory [mandatory]
+│   ├── EDP-System [mandatory]
+│   ├── EDP-Platform [mandatory]
+│   │   └── EDP-System [mandatory, transitive]
+│   └── EDP-BoundedTopology [mandatory]
+├── EDP-Platform-Portable [mandatory]
+│   ├── EDP-Platform [mandatory]
+│   │   └── EDP-System [mandatory]
+│   └── EDP-Memory [mandatory]
+│       ├── EDP-System [mandatory]
+│       ├── EDP-Platform [mandatory]
+│       │   └── EDP-System [mandatory, transitive]
+│       └── EDP-BoundedTopology [mandatory]
+└── EDP-Localisation [mandatory]
+    ├── EDP-System [mandatory]
+    ├── EDP-Memory [mandatory]
+    │   ├── EDP-System [mandatory]
+    │   ├── EDP-Platform [mandatory]
+    │   │   └── EDP-System [mandatory, transitive]
+    │   └── EDP-BoundedTopology [mandatory]
+    └── EDP-Persistence [optional through EDP-Localisation]
+        condition: only when an application instantiates Localisation FilePackSource
+        └── EDP-System [mandatory when imposed]
+```
+
+Serialisation consumes `EDP-BoundedTopology::BoundedIndexSet` directly for one-bit-per-FieldIdentifier presence/duplicate state, `EDP-Memory` for ByteOperations, and `EDP-Platform-Portable` for the default stateless ByteOperations provider. See [DEPENDENCY_GRAPH.MD](./DEPENDENCY_GRAPH.MD) for ownership and dependency-direction detail.
+
+## C++20 and PIOArduino
+
+ESPressio requires C++20. For the policy-required PlatformIO-format ESP32 projects, install **PIOArduino Core** rather than upstream PlatformIO Core. The checked-in `platformio.ini` files select the maintained PIOArduino `platform-espressif32` package and explicitly remove older GNU language flags before adding `-std=gnu++20`, ensuring Arduino-ESP32 and ESP-IDF builds use the supported C++20 baseline.
+
+A current PIOArduino Core can be installed using its maintained installer:
+
+```sh
+curl -fsSL -o get-platformio.py https://raw.githubusercontent.com/pioarduino/pioarduino-core-installer/pioarduino/get-platformio.py
+python3 get-platformio.py
+```
+
+The resulting command remains `pio`, so the project folder names retain the policy-mandated `PlatformIO_Arduino` / `PlatformIO_ESP-IDF` convention while execution uses PIOArduino.
 
 ## Demos
 
-`demos/type-qualification` demonstrates schema recursion, bounded values, enum certification, profile vocabulary, and compile-time qualification. `demos/json-numeric-encoding` demonstrates canonical Numeric Field ordering, Optional omission, floating encoding, Base64 Bytes, exact measurement and caller-buffer serialisation. `demos/json-numeric-decoding` demonstrates schema-ID resolution, Optional omission semantics, floating decode, strict Base64 and transactional population. `demos/json-typed-envelope` demonstrates canonical envelope emission plus transactional root Type/version validation. `demos/json-localised-text` demonstrates caller-owned Localisation/scratch, RFC5646 metadata and textual Field round-trip. `demos/cbor-numeric` demonstrates deterministic CBOR Numeric encoding/transactional decoding with a Typed Envelope. Every demo is maintained in Arduino IDE, PlatformIO Arduino, and PlatformIO ESP-IDF forms.
+`demos/type-qualification` demonstrates schema recursion, bounded values, enum certification, profile vocabulary, and compile-time qualification. `demos/json-numeric-encoding` demonstrates canonical Numeric Field ordering, Optional omission, floating encoding, Base64 Bytes, exact measurement and caller-buffer serialisation. `demos/json-numeric-decoding` demonstrates schema-ID resolution, Optional omission semantics, floating decode, strict Base64 and transactional population. `demos/json-typed-envelope` demonstrates canonical envelope emission plus transactional root Type/version validation. `demos/json-localised-text` demonstrates caller-owned Localisation/scratch, RFC5646 metadata and textual Field round-trip. `demos/cbor-numeric` demonstrates deterministic CBOR Numeric encoding/transactional decoding for both Known-Type Body and Typed Envelope roots. Every logical demo is maintained in Arduino IDE, PlatformIO Arduino, and PlatformIO ESP-IDF forms; PIOArduino is the recommended builder for the latter two forms.
 
 ## Validation
 

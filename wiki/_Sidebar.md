@@ -18,4 +18,5 @@
 - [Encoding Sinks Reference](Reference-EncodingSinks)
 - [CBOR Encoding Reference](Reference-CborEncoding)
 - [CBOR Decoding Reference](Reference-CborDecoding)
+- [Schema Field Presence Reference](Reference-SchemaFieldPresence)
 - [CBOR Typed Envelope Reference](Reference-CborEnvelope)

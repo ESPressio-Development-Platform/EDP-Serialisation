@@ -33,13 +33,13 @@ Enum serialisability is explicit through `EnumSerialisationTraits<TEnum>::Underl
 
 ## State and allocation
 
-The implementation retains no global or per-codec state, schema registry, DOM, allocator, provider state, cache or mutable singleton. `Measure` uses one shared zero-storage codec-neutral counting sink; JSON and CBOR `Serialise` write directly into caller-owned contiguous bytes only after successful preflight validation/measurement. Public result values remain fixed-size value objects. `Deserialise` retains only parser cursors, fixed token/skip state and a 32-byte schema presence bitmap while validating/replaying caller-owned input.
+The implementation retains no global or per-codec state, schema registry, DOM, allocator, provider state, cache or mutable singleton. `Measure` uses one shared zero-storage codec-neutral counting sink; JSON and CBOR `Serialise` write directly into caller-owned contiguous bytes only after successful preflight validation/measurement. Public result values remain fixed-size value objects. `Deserialise` retains only parser cursors, fixed token/skip state and a 32-byte `EDP-BoundedTopology::BoundedIndexSet` schema presence set while validating/replaying caller-owned input.
 
 The two-pass encoding contract assumes the source and canonical forward adapters are observationally stable for the duration of one call. Deserialisation validates the complete immutable input before replaying it to populate; reverse adapters must be deterministic for the same surrogate so validation and population cannot diverge.
 
 ## Dependency evolution
 
-Direct dependencies are introduced only when source consumes them. JSON and CBOR caller-buffer emission consume the shared EDP-Memory ByteOperations contract with the EDP-Platform-Portable stateless provider as the default, so both are direct alongside System and BoundedTypes. LocalisedText execution now consumes EDP-Localisation directly; Serialisation delegates language validation/fallback and forward/reverse presentation identity to that repository and retains no language-pack representation.
+Direct dependencies are introduced only when source consumes them. Schema duplicate/presence tracking directly consumes `EDP-BoundedTopology::BoundedIndexSet`. JSON and CBOR caller-buffer emission consume the shared EDP-Memory ByteOperations contract with the EDP-Platform-Portable stateless provider as the default, so both are direct alongside System and BoundedTypes. LocalisedText execution now consumes EDP-Localisation directly; Serialisation delegates language validation/fallback and forward/reverse presentation identity to that repository and retains no language-pack representation.
 
 ## Typed Envelope root layer
 
@@ -53,4 +53,4 @@ The shared JSON scalar/container/schema codec is Field-policy aware. Numeric Fie
 
 ## CBOR Numeric layer
 
-CBOR Numeric reuses the same schema/adaptation universe and the shared codec-neutral output sinks. It emits definite-length arrays/maps, unsigned numeric FieldIdentifier keys in ascending order, native major type 0/1 integers with shortest legal heads, exact binary32/binary64 widths, text/byte strings with no cross-category coercion, and CBOR null for disengaged root/sequence Optional values. The decoder rejects indefinite containers and non-canonical heads, applies the same fixed 256-bit schema presence map and ParserLimits, and uses the same two-pass transactional destination rule as JSON.
+CBOR Numeric reuses the same schema/adaptation universe and the shared codec-neutral output sinks. It emits definite-length arrays/maps, unsigned numeric FieldIdentifier keys in ascending order, native major type 0/1 integers with shortest legal heads, exact binary32/binary64 widths, text/byte strings with no cross-category coercion, and CBOR null for disengaged root/sequence Optional values. The decoder rejects indefinite containers and non-canonical heads, applies the same shared 256-entry `EDP-BoundedTopology::BoundedIndexSet` schema presence set and ParserLimits, and uses the same two-pass transactional destination rule as JSON.

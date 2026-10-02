@@ -12,17 +12,16 @@ PUBLIC API. `TCodec` selects the compile-time codec; `TRootProfile` defaults to 
 
 The parameter-only operation family implements `Json + Numeric` and `Cbor + Numeric` with either `KnownTypeBody` or `TypedEnvelope`. Typed Envelope additionally requires `System::IdentifiedType<T>` and measures codec-specific canonical root metadata plus the same body traversal. Dedicated overloads implement JSON LocalisedText. The function validates all represented values/adaptations and returns exact `RequiredBytes` only on success.
 
-## `Serialise<TCodec, TRootProfile, TFieldProfile, TValue>(value, output, capacity)`
+## `Serialise<TCodec, TRootProfile, TFieldProfile, TValue>(value, output)`
 
 PUBLIC API. Codec/root/Field parameters have the same meaning and current profile restriction as `Measure`. `TByteOperationsProvider` defaults to the stateless portable EDP-Memory ByteOperations provider and may be replaced by another conforming stateless provider at compile time; `TValue` is deduced and must satisfy `SerialisableType`.
 
 Parameters:
 
 - `value` — caller-owned source value;
-- `output` — first byte of caller-owned contiguous output storage;
-- `capacity` — writable bytes available from `output`.
+- `output` — caller-owned `std::span<std::byte>` identifying the complete writable output range.
 
-The operation first invokes exact `Measure`. Invalid source/adaptation therefore causes no write. Null output yields `InvalidArgument`; insufficient capacity yields `OutputBufferTooSmall` and preserves exact `RequiredBytes`; both report `BytesWritten == 0`. Only a fully prevalidated value with sufficient capacity enters the direct write traversal.
+The operation first invokes exact `Measure`. Invalid source/adaptation therefore causes no write. Insufficient span capacity yields `OutputBufferTooSmall`, preserves exact `RequiredBytes`, and reports `BytesWritten == 0`. Only a fully prevalidated value with sufficient capacity enters the direct write traversal.
 
 The source and forward conversion adapters must remain observationally stable for the duration of the two-pass call. The operation performs no hidden allocation or staging-copy of the encoded representation.
 
@@ -44,14 +43,14 @@ PRIVATE IMPLEMENTATION consteval profile gate. `TCodec`, `TRootProfile`, and `TF
 
 ## Validation relationships
 
-Host coverage checks exact measurement/written-size agreement, scalar/container/schema/adapter output, canonical Field ordering, Optional omission, UTF-8/Base64 behavior, invalid-source preflight, null output, insufficient-capacity preservation, and failed adaptation. PlatformIO Arduino and ESP-IDF demos instantiate the public operations on ESP32.
+Host coverage checks exact measurement/written-size agreement, scalar/container/schema/adapter output, canonical Field ordering, Optional omission, UTF-8/Base64 behavior, invalid-source preflight, insufficient-capacity preservation, and failed adaptation. PIOArduino builds the PlatformIO Arduino and ESP-IDF demo forms, which instantiate the public operations on ESP32.
 
 
-## `Deserialise<TCodec,TRootProfile,TFieldProfile,TStrictness,TParserLimits,TValue>(input,length,destination)`
+## `Deserialise<TCodec,TRootProfile,TFieldProfile,TStrictness,TParserLimits,TValue>(input,destination)`
 
 PUBLIC API. `TCodec` may be `Json` or `Cbor` for the Numeric operation family; the parameter-only overload defaults to `KnownTypeBody` / `Numeric`; `TStrictness` defaults to `Exact`; `TParserLimits` defaults to `DefaultParserLimits`; `TValue` must satisfy `SerialisableType`.
 
-The operation rejects null input and dispatches to the selected codec's complete validate-only pass before replayed population. JSON permits only trailing JSON whitespace; CBOR requires exact byte exhaustion. Failures report `BytesConsumed == 0`; success reports the complete supplied length. Pass one may read existing destination state solely to seed a copy-constructible non-default strong semantic validation temporary; it does not mutate caller state.
+The operation consumes caller-owned `std::span<const std::byte>` and dispatches to the selected codec's complete validate-only pass before replayed population. JSON permits only trailing JSON whitespace; CBOR requires exact byte exhaustion. Failures report `BytesConsumed == 0`; success reports the complete supplied span size. Pass one may read existing destination state solely to seed a copy-constructible non-default strong semantic validation temporary; it does not mutate caller state.
 
 ## `Detail::ToDeserialisationStatus(JsonDecodingStatus)`
 

@@ -11,14 +11,13 @@ const auto result = ESPressio::Serialisation::Deserialise<
     ESPressio::Serialisation::Json
 >(
     input,
-    length,
     destination
 );
 ```
 
 The root/Field profiles default to `KnownTypeBody` / `Numeric`; strictness defaults to `StrictnessPolicy::Exact`; parser resources default to `DefaultParserLimits`. Unsupported compile-time codec/profile combinations fail with focused `static_assert` diagnostics.
 
-`input` must be non-null. JSON whitespace may precede/follow the root value, but any other trailing byte produces `TrailingData`. `BytesConsumed` equals the supplied input length only on success and remains zero on failure.
+`input` is a caller-owned `std::span<const std::byte>`. JSON whitespace may precede/follow the root value, but any other trailing byte produces `TrailingData`. `BytesConsumed` equals the supplied span size only on success and remains zero on failure.
 
 ## Transactional destination guarantee
 
@@ -35,7 +34,7 @@ No second full object, DOM or dynamic scratch tree is retained. Validation spend
 
 Numeric JSON schema keys are canonical decimal strings `"0"` through `"255"`. Input Field order is arbitrary; identity comes solely from `System::FieldIdentifier`.
 
-A fixed 256-bit bitmap tracks schema Field presence and duplicates. Duplicate known or unknown numeric Field keys always fail. Required non-Optional Fields must be present. Optional object Fields may be absent or explicit `null`, both producing a disengaged destination Optional.
+`EDP-BoundedTopology::BoundedIndexSet` provides the fixed 256-bit one-bit-per-`FieldIdentifier` presence/duplicate state. Duplicate known or unknown numeric Field keys always fail. Required non-Optional Fields must be present. Optional object Fields may be absent or explicit `null`, both producing a disengaged destination Optional.
 
 `StrictnessPolicy::Exact` rejects a structurally valid unknown Field with `UnknownField`. `IgnoreUnknownFields` validates and skips the complete unknown JSON value. Skipped objects also reject duplicate textual JSON member names, including escaped-equivalent spellings such as `"a"` and `"\\u0061"`; this is implemented by replay comparison rather than an unbounded key dictionary.
 

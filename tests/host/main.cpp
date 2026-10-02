@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ESPressio_Serialisation.hpp>
+#include <span>
 
 #include "TestPacks.hpp"
 
@@ -412,13 +413,21 @@ namespace TestSupport {
                     std::nullopt
                 };
             }
-            if (IsTextEqual(fieldName, "Alpha", 5U)) {
+            if (IsTextEqual(
+                fieldName,
+                "Alpha",
+                5U
+            )) {
                 return {
                     ESPressio::Localisation::FieldIdentifierResolutionStatus::Success,
                     ESPressio::System::FieldIdentifier{0U}
                 };
             }
-            if (IsTextEqual(fieldName, "Beta", 4U)) {
+            if (IsTextEqual(
+                fieldName,
+                "Beta",
+                4U
+            )) {
                 return {
                     ESPressio::Localisation::FieldIdentifierResolutionStatus::Success,
                     ESPressio::System::FieldIdentifier{1U}
@@ -736,8 +745,12 @@ void ExpectCanonicalJson(
         ESPressio::Serialisation::Json
     >(
         value,
-        output.data(),
-        output.size()
+        std::as_writable_bytes(
+            std::span{
+                output.data(),
+                output.size()
+            }
+        )
     );
     assert(result.IsSuccessful());
     assert(result.RequiredBytes == measurement.RequiredBytes);
@@ -763,8 +776,12 @@ ESPressio::Serialisation::DeserialisationResult DecodeJsonLiteral(
     return ESPressio::Serialisation::Deserialise<
         ESPressio::Serialisation::Json
     >(
-        reinterpret_cast<const std::uint8_t*>(input),
-        TInputSize - 1U,
+        std::as_bytes(
+            std::span<const char>{
+                input,
+                TInputSize - 1U
+            }
+        ),
         destination
     );
 }
@@ -791,8 +808,12 @@ void ExpectCanonicalCbor(
         ESPressio::Serialisation::Cbor
     >(
         value,
-        output.data(),
-        output.size()
+        std::as_writable_bytes(
+            std::span{
+                output.data(),
+                output.size()
+            }
+        )
     );
     assert(result.IsSuccessful());
     assert(result.RequiredBytes == expected.size());
@@ -817,8 +838,12 @@ ESPressio::Serialisation::DeserialisationResult DecodeCborBytes(
     return ESPressio::Serialisation::Deserialise<
         ESPressio::Serialisation::Cbor
     >(
-        input.data(),
-        input.size(),
+        std::as_bytes(
+            std::span{
+                input.data(),
+                input.size()
+            }
+        ),
         destination
     );
 }
@@ -1067,8 +1092,12 @@ int main() {
     assert(infiniteMeasurement.RequiredBytes == 0U);
     const auto infiniteSerialisation = Serialise<Json>(
         std::numeric_limits<double>::infinity(),
-        untouched.data(),
-        untouched.size()
+        std::as_writable_bytes(
+            std::span{
+                untouched.data(),
+                untouched.size()
+            }
+        )
     );
     assert(infiniteSerialisation.Status == SerialisationStatus::NonFiniteNumber);
     assert(infiniteSerialisation.BytesWritten == 0U);
@@ -1090,8 +1119,12 @@ int main() {
     untouched.fill(0x5AU);
     const auto invalidUtf8Serialisation = Serialise<Json>(
         invalidUtf8,
-        untouched.data(),
-        untouched.size()
+        std::as_writable_bytes(
+            std::span{
+                untouched.data(),
+                untouched.size()
+            }
+        )
     );
     assert(invalidUtf8Serialisation.Status == SerialisationStatus::InvalidUtf8);
     assert(invalidUtf8Serialisation.BytesWritten == 0U);
@@ -1106,8 +1139,12 @@ int main() {
     untouched.fill(0x6BU);
     const auto rejectedSerialisation = Serialise<Json>(
         rejected,
-        untouched.data(),
-        untouched.size()
+        std::as_writable_bytes(
+            std::span{
+                untouched.data(),
+                untouched.size()
+            }
+        )
     );
     assert(rejectedSerialisation.Status == SerialisationStatus::AdaptationFailed);
     assert(rejectedSerialisation.BytesWritten == 0U);
@@ -1123,8 +1160,12 @@ int main() {
     tooSmall.fill(0xCCU);
     const auto insufficient = Serialise<Json>(
         payload,
-        tooSmall.data(),
-        tooSmall.size()
+        std::as_writable_bytes(
+            std::span{
+                tooSmall.data(),
+                tooSmall.size()
+            }
+        )
     );
     assert(insufficient.Status == SerialisationStatus::OutputBufferTooSmall);
     assert(insufficient.RequiredBytes == payloadMeasurement.RequiredBytes);
@@ -1133,88 +1174,130 @@ int main() {
         assert(byte == 0xCCU);
     }
 
-    const auto nullOutput = Serialise<Json>(
-        payload,
-        nullptr,
-        payloadMeasurement.RequiredBytes
-    );
-    assert(nullOutput.Status == SerialisationStatus::InvalidArgument);
-    assert(nullOutput.RequiredBytes == payloadMeasurement.RequiredBytes);
-    assert(nullOutput.BytesWritten == 0U);
-
 
     // JSON Numeric/Known-Type transactional deserialisation.
 
     std::uint16_t decodedInteger = 9U;
-    auto decodeResult = DecodeJsonLiteral("12.0", decodedInteger);
+    auto decodeResult = DecodeJsonLiteral(
+        "12.0",
+        decodedInteger
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodeResult.BytesConsumed == 4U);
     assert(decodedInteger == 12U);
 
-    decodeResult = DecodeJsonLiteral("1e2", decodedInteger);
+    decodeResult = DecodeJsonLiteral(
+        "1e2",
+        decodedInteger
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodedInteger == 100U);
 
-    decodeResult = DecodeJsonLiteral("100e-2", decodedInteger);
+    decodeResult = DecodeJsonLiteral(
+        "100e-2",
+        decodedInteger
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodedInteger == 1U);
 
     decodedInteger = 91U;
-    decodeResult = DecodeJsonLiteral("1.5", decodedInteger);
+    decodeResult = DecodeJsonLiteral(
+        "1.5",
+        decodedInteger
+    );
     assert(decodeResult.Status == DeserialisationStatus::TypeMismatch);
     assert(decodedInteger == 91U);
 
     std::uint8_t decodedUnsigned8 = 7U;
-    decodeResult = DecodeJsonLiteral("255", decodedUnsigned8);
+    decodeResult = DecodeJsonLiteral(
+        "255",
+        decodedUnsigned8
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodedUnsigned8 == 255U);
     decodedUnsigned8 = 7U;
-    decodeResult = DecodeJsonLiteral("256", decodedUnsigned8);
+    decodeResult = DecodeJsonLiteral(
+        "256",
+        decodedUnsigned8
+    );
     assert(decodeResult.Status == DeserialisationStatus::NumericOutOfRange);
     assert(decodedUnsigned8 == 7U);
-    decodeResult = DecodeJsonLiteral("-1", decodedUnsigned8);
+    decodeResult = DecodeJsonLiteral(
+        "-1",
+        decodedUnsigned8
+    );
     assert(decodeResult.Status == DeserialisationStatus::NumericOutOfRange);
     assert(decodedUnsigned8 == 7U);
-    decodeResult = DecodeJsonLiteral("-0", decodedUnsigned8);
+    decodeResult = DecodeJsonLiteral(
+        "-0",
+        decodedUnsigned8
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodedUnsigned8 == 0U);
 
     std::int8_t decodedSigned8 = 3;
-    decodeResult = DecodeJsonLiteral("-128", decodedSigned8);
+    decodeResult = DecodeJsonLiteral(
+        "-128",
+        decodedSigned8
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodedSigned8 == std::numeric_limits<std::int8_t>::min());
     decodedSigned8 = 3;
-    decodeResult = DecodeJsonLiteral("-129", decodedSigned8);
+    decodeResult = DecodeJsonLiteral(
+        "-129",
+        decodedSigned8
+    );
     assert(decodeResult.Status == DeserialisationStatus::NumericOutOfRange);
     assert(decodedSigned8 == 3);
 
     bool decodedBool = false;
-    decodeResult = DecodeJsonLiteral("true", decodedBool);
+    decodeResult = DecodeJsonLiteral(
+        "true",
+        decodedBool
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodedBool);
     decodedBool = true;
-    decodeResult = DecodeJsonLiteral("1", decodedBool);
+    decodeResult = DecodeJsonLiteral(
+        "1",
+        decodedBool
+    );
     assert(decodeResult.Status == DeserialisationStatus::TypeMismatch);
     assert(decodedBool);
 
     TestSupport::Mode decodedMode = TestSupport::Mode::Off;
-    decodeResult = DecodeJsonLiteral("7", decodedMode);
+    decodeResult = DecodeJsonLiteral(
+        "7",
+        decodedMode
+    );
     assert(decodeResult.IsSuccessful());
     assert(static_cast<std::uint8_t>(decodedMode) == 7U);
 
     double decodedDouble = 42.0;
-    decodeResult = DecodeJsonLiteral("-0", decodedDouble);
+    decodeResult = DecodeJsonLiteral(
+        "-0",
+        decodedDouble
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodedDouble == 0.0);
     assert(std::signbit(decodedDouble));
-    decodeResult = DecodeJsonLiteral("0e999999999999999999999", decodedDouble);
+    decodeResult = DecodeJsonLiteral(
+        "0e999999999999999999999",
+        decodedDouble
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodedDouble == 0.0);
     decodedDouble = 42.0;
-    decodeResult = DecodeJsonLiteral("1e-10000", decodedDouble);
+    decodeResult = DecodeJsonLiteral(
+        "1e-10000",
+        decodedDouble
+    );
     assert(decodeResult.Status == DeserialisationStatus::NumericUnderflow);
     assert(decodedDouble == 42.0);
-    decodeResult = DecodeJsonLiteral("1e10000", decodedDouble);
+    decodeResult = DecodeJsonLiteral(
+        "1e10000",
+        decodedDouble
+    );
     assert(decodeResult.Status == DeserialisationStatus::NumericOutOfRange);
     assert(decodedDouble == 42.0);
 
@@ -1222,10 +1305,34 @@ int main() {
     assert(
         decodedText.Assign("old") == ESPressio::Bounded::StringAssignmentResult::Succeeded
     );
-    decodeResult = DecodeJsonLiteral("\"A\\u20ac\"", decodedText);
+    decodeResult = DecodeJsonLiteral(
+        "\"A\\u20ac\"",
+        decodedText
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodedText.View() == std::string_view{"A€"});
-    decodeResult = DecodeJsonLiteral("\"\\ud83d\\ude00\"", decodedText);
+
+    const char validRawUtf8[]{
+        '"',
+        static_cast<char>(0xE2U),
+        static_cast<char>(0x82U),
+        static_cast<char>(0xACU),
+        '"',
+        '\0'
+    };
+    decodeResult = DecodeJsonLiteral(
+        validRawUtf8,
+        decodedText
+    );
+    assert(decodeResult.IsSuccessful());
+    assert(decodedText.Size() == 3U);
+    assert(static_cast<std::uint8_t>(decodedText[0U]) == 0xE2U);
+    assert(static_cast<std::uint8_t>(decodedText[1U]) == 0x82U);
+    assert(static_cast<std::uint8_t>(decodedText[2U]) == 0xACU);
+    decodeResult = DecodeJsonLiteral(
+        "\"\\ud83d\\ude00\"",
+        decodedText
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodedText.Size() == 4U);
     assert(static_cast<std::uint8_t>(decodedText[0U]) == 0xF0U);
@@ -1234,12 +1341,18 @@ int main() {
     assert(
         decodedText.Assign("keep") == ESPressio::Bounded::StringAssignmentResult::Succeeded
     );
-    decodeResult = DecodeJsonLiteral("\"\\u0000\"", decodedText);
+    decodeResult = DecodeJsonLiteral(
+        "\"\\u0000\"",
+        decodedText
+    );
     assert(decodeResult.Status == DeserialisationStatus::InvalidUtf8);
     assert(decodedText.View() == std::string_view{"keep"});
 
     const char invalidRawUtf8[]{'"', static_cast<char>(0xC0U), static_cast<char>(0xAFU), '"', '\0'};
-    decodeResult = DecodeJsonLiteral(invalidRawUtf8, decodedText);
+    decodeResult = DecodeJsonLiteral(
+        invalidRawUtf8,
+        decodedText
+    );
     assert(decodeResult.Status == DeserialisationStatus::InvalidUtf8);
     assert(decodedText.View() == std::string_view{"keep"});
 
@@ -1247,7 +1360,10 @@ int main() {
     assert(
         tinyText.Assign("old") == ESPressio::Bounded::StringAssignmentResult::Succeeded
     );
-    decodeResult = DecodeJsonLiteral("\"abcd\"", tinyText);
+    decodeResult = DecodeJsonLiteral(
+        "\"abcd\"",
+        tinyText
+    );
     assert(decodeResult.Status == DeserialisationStatus::CapacityExceeded);
     assert(tinyText.View() == std::string_view{"old"});
 
@@ -1255,7 +1371,10 @@ int main() {
     assert(
         decodedBytes.PushBack(9U) == ESPressio::Bounded::BytesPushBackResult::Succeeded
     );
-    decodeResult = DecodeJsonLiteral("\"AQL+\"", decodedBytes);
+    decodeResult = DecodeJsonLiteral(
+        "\"AQL+\"",
+        decodedBytes
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodedBytes.Size() == 3U);
     assert(decodedBytes[0U] == 1U);
@@ -1266,32 +1385,53 @@ int main() {
     assert(
         preservedBytes.PushBack(0xAAU) == ESPressio::Bounded::BytesPushBackResult::Succeeded
     );
-    decodeResult = DecodeJsonLiteral("\"Zg\"", preservedBytes);
+    decodeResult = DecodeJsonLiteral(
+        "\"Zg\"",
+        preservedBytes
+    );
     assert(decodeResult.Status == DeserialisationStatus::InvalidBase64);
     assert(preservedBytes.Size() == 1U && preservedBytes[0U] == 0xAAU);
-    decodeResult = DecodeJsonLiteral("\"Zh==\"", preservedBytes);
+    decodeResult = DecodeJsonLiteral(
+        "\"Zh==\"",
+        preservedBytes
+    );
     assert(decodeResult.Status == DeserialisationStatus::InvalidBase64);
     assert(preservedBytes.Size() == 1U && preservedBytes[0U] == 0xAAU);
-    decodeResult = DecodeJsonLiteral("\"Zm8=\"", preservedBytes);
+    decodeResult = DecodeJsonLiteral(
+        "\"Zm8=\"",
+        preservedBytes
+    );
     assert(decodeResult.IsSuccessful());
     assert(preservedBytes.Size() == 2U);
     assert(preservedBytes[0U] == static_cast<std::uint8_t>('f'));
     assert(preservedBytes[1U] == static_cast<std::uint8_t>('o'));
 
     std::array<std::uint16_t, 3U> decodedArray{9U, 9U, 9U};
-    decodeResult = DecodeJsonLiteral("[1,2,3]", decodedArray);
+    decodeResult = DecodeJsonLiteral(
+        "[1,2,3]",
+        decodedArray
+    );
     assert(decodeResult.IsSuccessful());
     assert((decodedArray == std::array<std::uint16_t, 3U>{1U, 2U, 3U}));
     decodedArray = {9U, 9U, 9U};
-    decodeResult = DecodeJsonLiteral("[1,2]", decodedArray);
+    decodeResult = DecodeJsonLiteral(
+        "[1,2]",
+        decodedArray
+    );
     assert(decodeResult.Status == DeserialisationStatus::TypeMismatch);
     assert((decodedArray == std::array<std::uint16_t, 3U>{9U, 9U, 9U}));
-    decodeResult = DecodeJsonLiteral("[1,2,3,4]", decodedArray);
+    decodeResult = DecodeJsonLiteral(
+        "[1,2,3,4]",
+        decodedArray
+    );
     assert(decodeResult.Status == DeserialisationStatus::TypeMismatch);
     assert((decodedArray == std::array<std::uint16_t, 3U>{9U, 9U, 9U}));
 
     std::uint16_t decodedCArray[2U]{8U, 9U};
-    decodeResult = DecodeJsonLiteral("[4,5]", decodedCArray);
+    decodeResult = DecodeJsonLiteral(
+        "[4,5]",
+        decodedCArray
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodedCArray[0U] == 4U && decodedCArray[1U] == 5U);
 
@@ -1299,18 +1439,30 @@ int main() {
     assert(
         decodedVector.PushBack(99U) == ESPressio::Bounded::VectorPushBackResult::Succeeded
     );
-    decodeResult = DecodeJsonLiteral("[6,7]", decodedVector);
+    decodeResult = DecodeJsonLiteral(
+        "[6,7]",
+        decodedVector
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodedVector.Size() == 2U && decodedVector[0U] == 6U && decodedVector[1U] == 7U);
-    decodeResult = DecodeJsonLiteral("[1,2,3]", decodedVector);
+    decodeResult = DecodeJsonLiteral(
+        "[1,2,3]",
+        decodedVector
+    );
     assert(decodeResult.Status == DeserialisationStatus::CapacityExceeded);
     assert(decodedVector.Size() == 2U && decodedVector[0U] == 6U && decodedVector[1U] == 7U);
 
     std::optional<std::uint32_t> decodedOptional{55U};
-    decodeResult = DecodeJsonLiteral("null", decodedOptional);
+    decodeResult = DecodeJsonLiteral(
+        "null",
+        decodedOptional
+    );
     assert(decodeResult.IsSuccessful());
     assert(!decodedOptional.has_value());
-    decodeResult = DecodeJsonLiteral("73", decodedOptional);
+    decodeResult = DecodeJsonLiteral(
+        "73",
+        decodedOptional
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodedOptional.has_value() && decodedOptional.value() == 73U);
 
@@ -1352,7 +1504,10 @@ int main() {
     assert(decodedPayload.Count.has_value() && decodedPayload.Count.value() == 77U);
     assert(decodedPayload.Child.Value == 66U);
 
-    decodeResult = DecodeJsonLiteral("{\"7\":\"x\"}", decodedPayload);
+    decodeResult = DecodeJsonLiteral(
+        "{\"7\":\"x\"}",
+        decodedPayload
+    );
     assert(decodeResult.Status == DeserialisationStatus::MissingRequiredField);
     assert(decodedPayload.Name.View() == std::string_view{"stable"});
     assert(decodedPayload.Child.Value == 66U);
@@ -1378,8 +1533,12 @@ int main() {
         FieldProfile::Numeric,
         StrictnessPolicy::IgnoreUnknownFields
     >(
-        reinterpret_cast<const std::uint8_t*>(ignoredUnknown),
-        sizeof(ignoredUnknown) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(ignoredUnknown),
+                sizeof(ignoredUnknown) - 1U
+            }
+        ),
         decodedPayload
     );
     assert(decodeResult.IsSuccessful());
@@ -1394,8 +1553,12 @@ int main() {
         FieldProfile::Numeric,
         StrictnessPolicy::IgnoreUnknownFields
     >(
-        reinterpret_cast<const std::uint8_t*>(duplicateNestedUnknown),
-        sizeof(duplicateNestedUnknown) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(duplicateNestedUnknown),
+                sizeof(duplicateNestedUnknown) - 1U
+            }
+        ),
         decodedPayload
     );
     assert(decodeResult.Status == DeserialisationStatus::DuplicateField);
@@ -1407,8 +1570,12 @@ int main() {
         FieldProfile::Numeric,
         StrictnessPolicy::IgnoreUnknownFields
     >(
-        reinterpret_cast<const std::uint8_t*>(duplicateUnknown),
-        sizeof(duplicateUnknown) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(duplicateUnknown),
+                sizeof(duplicateUnknown) - 1U
+            }
+        ),
         decodedPayload
     );
     assert(decodeResult.Status == DeserialisationStatus::DuplicateField);
@@ -1421,8 +1588,12 @@ int main() {
         StrictnessPolicy::IgnoreUnknownFields,
         ParserLimits<32U, 1U>
     >(
-        reinterpret_cast<const std::uint8_t*>(limitedUnknown),
-        sizeof(limitedUnknown) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(limitedUnknown),
+                sizeof(limitedUnknown) - 1U
+            }
+        ),
         decodedPayload
     );
     assert(decodeResult.Status == DeserialisationStatus::ResourceLimitExceeded);
@@ -1435,39 +1606,60 @@ int main() {
         StrictnessPolicy::Exact,
         ParserLimits<1U, 8U>
     >(
-        reinterpret_cast<const std::uint8_t*>(limitedDepth),
-        sizeof(limitedDepth) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(limitedDepth),
+                sizeof(limitedDepth) - 1U
+            }
+        ),
         decodedPayload
     );
     assert(decodeResult.Status == DeserialisationStatus::ResourceLimitExceeded);
 
     const char trailingJson[] = "{\"4\":{\"9\":1},\"7\":\"x\"} trailing";
     decodeResult = Deserialise<Json>(
-        reinterpret_cast<const std::uint8_t*>(trailingJson),
-        sizeof(trailingJson) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(trailingJson),
+                sizeof(trailingJson) - 1U
+            }
+        ),
         decodedPayload
     );
     assert(decodeResult.Status == DeserialisationStatus::TrailingData);
 
     TestSupport::StrongCounter decodedStrong{1U};
-    decodeResult = DecodeJsonLiteral("44", decodedStrong);
+    decodeResult = DecodeJsonLiteral(
+        "44",
+        decodedStrong
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodedStrong.Value == 44U);
 
     TestSupport::FallibleStrong decodedFallible{8U};
-    decodeResult = DecodeJsonLiteral("99", decodedFallible);
+    decodeResult = DecodeJsonLiteral(
+        "99",
+        decodedFallible
+    );
     assert(decodeResult.Status == DeserialisationStatus::AdaptationFailed);
     assert(decodedFallible.Value == 8U);
 
     ESPressio::System::FieldIdentifier decodedFieldIdentifier{1U};
-    decodeResult = DecodeJsonLiteral("42", decodedFieldIdentifier);
+    decodeResult = DecodeJsonLiteral(
+        "42",
+        decodedFieldIdentifier
+    );
     assert(decodeResult.IsSuccessful());
     assert(decodedFieldIdentifier.Value() == 42U);
 
     const char malformedJson[] = "{\"4\":{\"9\":1},\"7\":\"x\",}";
     decodeResult = Deserialise<Json>(
-        reinterpret_cast<const std::uint8_t*>(malformedJson),
-        sizeof(malformedJson) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(malformedJson),
+                sizeof(malformedJson) - 1U
+            }
+        ),
         decodedPayload
     );
     assert(decodeResult.Status == DeserialisationStatus::MalformedRepresentation);
@@ -1493,8 +1685,12 @@ int main() {
         RootProfile::TypedEnvelope
     >(
         envelopeSource,
-        envelopeOutput.data(),
-        envelopeOutput.size()
+        std::as_writable_bytes(
+            std::span{
+                envelopeOutput.data(),
+                envelopeOutput.size()
+            }
+        )
     );
     assert(envelopeSerialisation.IsSuccessful());
     constexpr char ExpectedEnvelope[] =
@@ -1510,8 +1706,12 @@ int main() {
         Json,
         RootProfile::TypedEnvelope
     >(
-        envelopeOutput.data(),
-        envelopeSerialisation.BytesWritten,
+        std::as_bytes(
+            std::span{
+                envelopeOutput.data(),
+                envelopeSerialisation.BytesWritten
+            }
+        ),
         envelopeDestination
     );
     assert(envelopeDeserialisation.IsSuccessful());
@@ -1525,8 +1725,12 @@ int main() {
         Json,
         RootProfile::TypedEnvelope
     >(
-        reinterpret_cast<const std::uint8_t*>(ReorderedEnvelope),
-        sizeof(ReorderedEnvelope) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(ReorderedEnvelope),
+                sizeof(ReorderedEnvelope) - 1U
+            }
+        ),
         envelopeDestination
     );
     assert(envelopeDeserialisation.IsSuccessful());
@@ -1536,13 +1740,20 @@ int main() {
     constexpr char UnsupportedEnvelope[] =
         "{\"$edp\":{\"v\":2,\"type\":\"0000010000000002\"},\"value\":{\"4\":{\"9\":1},\"7\":\"bad\"}}";
     envelopeDestination.Child.Value = 77U;
-    assert(envelopeDestination.Name.Assign("before", 6U) == ESPressio::Bounded::StringAssignmentResult::Succeeded);
+    assert(envelopeDestination.Name.Assign(
+        "before",
+        6U
+    ) == ESPressio::Bounded::StringAssignmentResult::Succeeded);
     envelopeDeserialisation = Deserialise<
         Json,
         RootProfile::TypedEnvelope
     >(
-        reinterpret_cast<const std::uint8_t*>(UnsupportedEnvelope),
-        sizeof(UnsupportedEnvelope) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(UnsupportedEnvelope),
+                sizeof(UnsupportedEnvelope) - 1U
+            }
+        ),
         envelopeDestination
     );
     assert(envelopeDeserialisation.Status == DeserialisationStatus::UnsupportedEnvelopeVersion);
@@ -1555,8 +1766,12 @@ int main() {
         Json,
         RootProfile::TypedEnvelope
     >(
-        reinterpret_cast<const std::uint8_t*>(MismatchedEnvelope),
-        sizeof(MismatchedEnvelope) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(MismatchedEnvelope),
+                sizeof(MismatchedEnvelope) - 1U
+            }
+        ),
         envelopeDestination
     );
     assert(envelopeDeserialisation.Status == DeserialisationStatus::TypeIdentifierMismatch);
@@ -1569,8 +1784,12 @@ int main() {
         Json,
         RootProfile::TypedEnvelope
     >(
-        reinterpret_cast<const std::uint8_t*>(DuplicateEnvelopeMetadata),
-        sizeof(DuplicateEnvelopeMetadata) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(DuplicateEnvelopeMetadata),
+                sizeof(DuplicateEnvelopeMetadata) - 1U
+            }
+        ),
         envelopeDestination
     );
     assert(envelopeDeserialisation.Status == DeserialisationStatus::DuplicateField);
@@ -1582,8 +1801,12 @@ int main() {
         Json,
         RootProfile::TypedEnvelope
     >(
-        reinterpret_cast<const std::uint8_t*>(MissingEnvelopeValue),
-        sizeof(MissingEnvelopeValue) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(MissingEnvelopeValue),
+                sizeof(MissingEnvelopeValue) - 1U
+            }
+        ),
         envelopeDestination
     );
     assert(envelopeDeserialisation.Status == DeserialisationStatus::MalformedRepresentation);
@@ -1639,8 +1862,12 @@ int main() {
         FieldProfile::LocalisedText
     >(
         localisedSource,
-        localisedOutput.data(),
-        localisedOutput.size(),
+        std::as_writable_bytes(
+            std::span{
+                localisedOutput.data(),
+                localisedOutput.size()
+            }
+        ),
         localisationResolver,
         germanContext,
         scratchA,
@@ -1661,8 +1888,12 @@ int main() {
         RootProfile::KnownTypeBody,
         FieldProfile::LocalisedText
     >(
-        localisedOutput.data(),
-        localisedSerialisation.BytesWritten,
+        std::as_bytes(
+            std::span{
+                localisedOutput.data(),
+                localisedSerialisation.BytesWritten
+            }
+        ),
         localisedDestination,
         localisationResolver,
         germanContext,
@@ -1678,8 +1909,12 @@ int main() {
         RootProfile::KnownTypeBody,
         FieldProfile::LocalisedText
     >(
-        reinterpret_cast<const std::uint8_t*>(NoMetadataLocalised),
-        sizeof(NoMetadataLocalised) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(NoMetadataLocalised),
+                sizeof(NoMetadataLocalised) - 1U
+            }
+        ),
         localisedDestination,
         localisationResolver,
         TestGenerated::EnglishValidation.Value,
@@ -1696,8 +1931,12 @@ int main() {
         RootProfile::KnownTypeBody,
         FieldProfile::LocalisedText
     >(
-        reinterpret_cast<const std::uint8_t*>(MismatchedLanguage),
-        sizeof(MismatchedLanguage) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(MismatchedLanguage),
+                sizeof(MismatchedLanguage) - 1U
+            }
+        ),
         localisedDestination,
         localisationResolver,
         englishContext,
@@ -1713,8 +1952,12 @@ int main() {
         RootProfile::KnownTypeBody,
         FieldProfile::LocalisedText
     >(
-        reinterpret_cast<const std::uint8_t*>(NonStringLanguage),
-        sizeof(NonStringLanguage) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(NonStringLanguage),
+                sizeof(NonStringLanguage) - 1U
+            }
+        ),
         localisedDestination,
         localisationResolver,
         germanContext,
@@ -1730,8 +1973,12 @@ int main() {
         RootProfile::KnownTypeBody,
         FieldProfile::LocalisedText
     >(
-        reinterpret_cast<const std::uint8_t*>(NonCanonicalLanguage),
-        sizeof(NonCanonicalLanguage) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(NonCanonicalLanguage),
+                sizeof(NonCanonicalLanguage) - 1U
+            }
+        ),
         localisedDestination,
         localisationResolver,
         TestGenerated::EnglishValidation.Value,
@@ -1748,8 +1995,12 @@ int main() {
         RootProfile::KnownTypeBody,
         FieldProfile::LocalisedText
     >(
-        reinterpret_cast<const std::uint8_t*>(UnknownLocalised),
-        sizeof(UnknownLocalised) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(UnknownLocalised),
+                sizeof(UnknownLocalised) - 1U
+            }
+        ),
         localisedDestination,
         localisationResolver,
         englishContext,
@@ -1763,8 +2014,12 @@ int main() {
         FieldProfile::LocalisedText,
         StrictnessPolicy::IgnoreUnknownFields
     >(
-        reinterpret_cast<const std::uint8_t*>(UnknownLocalised),
-        sizeof(UnknownLocalised) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(UnknownLocalised),
+                sizeof(UnknownLocalised) - 1U
+            }
+        ),
         localisedDestination,
         localisationResolver,
         englishContext,
@@ -1809,8 +2064,12 @@ int main() {
         RootProfile::KnownTypeBody,
         FieldProfile::LocalisedText
     >(
-        localisedOutput.data(),
-        localisedSerialisation.BytesWritten,
+        std::as_bytes(
+            std::span{
+                localisedOutput.data(),
+                localisedSerialisation.BytesWritten
+            }
+        ),
         localisedDestination,
         localisationResolver,
         germanContext,
@@ -1827,8 +2086,12 @@ int main() {
         RootProfile::KnownTypeBody,
         FieldProfile::LocalisedText
     >(
-        reinterpret_cast<const std::uint8_t*>(DuplicateLanguageMetadata),
-        sizeof(DuplicateLanguageMetadata) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(DuplicateLanguageMetadata),
+                sizeof(DuplicateLanguageMetadata) - 1U
+            }
+        ),
         localisedDestination,
         localisationResolver,
         germanContext,
@@ -1844,8 +2107,12 @@ int main() {
         RootProfile::KnownTypeBody,
         FieldProfile::LocalisedText
     >(
-        reinterpret_cast<const std::uint8_t*>(DuplicateLogicalField),
-        sizeof(DuplicateLogicalField) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(DuplicateLogicalField),
+                sizeof(DuplicateLogicalField) - 1U
+            }
+        ),
         localisedDestination,
         localisationResolver,
         englishContext,
@@ -1860,8 +2127,12 @@ int main() {
         FieldProfile::LocalisedText
     >(
         localisedSource,
-        localisedOutput.data(),
-        localisedOutput.size(),
+        std::as_writable_bytes(
+            std::span{
+                localisedOutput.data(),
+                localisedOutput.size()
+            }
+        ),
         localisationResolver,
         germanContext,
         scratchA,
@@ -1874,8 +2145,12 @@ int main() {
         RootProfile::TypedEnvelope,
         FieldProfile::LocalisedText
     >(
-        localisedOutput.data(),
-        localisedEnvelope.BytesWritten,
+        std::as_bytes(
+            std::span{
+                localisedOutput.data(),
+                localisedEnvelope.BytesWritten
+            }
+        ),
         localisedDestination,
         localisationResolver,
         germanContext,
@@ -1898,8 +2173,12 @@ int main() {
         FieldProfile::LocalisedText
     >(
         nestedLocalised,
-        nestedLocalisedOutput.data(),
-        nestedLocalisedOutput.size(),
+        std::as_writable_bytes(
+            std::span{
+                nestedLocalisedOutput.data(),
+                nestedLocalisedOutput.size()
+            }
+        ),
         normalResolver,
         englishContext,
         scratchA,
@@ -1915,8 +2194,12 @@ int main() {
         RootProfile::KnownTypeBody,
         FieldProfile::LocalisedText
     >(
-        nestedLocalisedOutput.data(),
-        nestedLocalisedSerialisation.BytesWritten,
+        std::as_bytes(
+            std::span{
+                nestedLocalisedOutput.data(),
+                nestedLocalisedSerialisation.BytesWritten
+            }
+        ),
         nestedLocalisedDestination,
         normalResolver,
         englishContext,
@@ -1986,8 +2269,12 @@ int main() {
         RootProfile::KnownTypeBody,
         FieldProfile::LocalisedText
     >(
-        reinterpret_cast<const std::uint8_t*>(AmbiguousLocalised),
-        sizeof(AmbiguousLocalised) - 1U,
+        std::as_bytes(
+            std::span{
+                reinterpret_cast<const std::uint8_t*>(AmbiguousLocalised),
+                sizeof(AmbiguousLocalised) - 1U
+            }
+        ),
         emptyLocalised,
         ambiguousResolver,
         TestGenerated::EnglishValidation.Value,
@@ -2101,8 +2388,12 @@ int main() {
     assert(cborInfiniteMeasurement.Status == MeasurementStatus::NonFiniteNumber);
     const auto cborInfiniteSerialisation = Serialise<Cbor>(
         std::numeric_limits<double>::infinity(),
-        cborUntouched.data(),
-        cborUntouched.size()
+        std::as_writable_bytes(
+            std::span{
+                cborUntouched.data(),
+                cborUntouched.size()
+            }
+        )
     );
     assert(cborInfiniteSerialisation.Status == SerialisationStatus::NonFiniteNumber);
     assert(cborInfiniteSerialisation.BytesWritten == 0U);
@@ -2111,8 +2402,12 @@ int main() {
     cborUntouched.fill(0x5AU);
     const auto cborRejectedSerialisation = Serialise<Cbor>(
         TestSupport::FallibleStrong{99U},
-        cborUntouched.data(),
-        cborUntouched.size()
+        std::as_writable_bytes(
+            std::span{
+                cborUntouched.data(),
+                cborUntouched.size()
+            }
+        )
     );
     assert(cborRejectedSerialisation.Status == SerialisationStatus::AdaptationFailed);
     assert(cborRejectedSerialisation.BytesWritten == 0U);
@@ -2123,8 +2418,12 @@ int main() {
     std::array<std::uint8_t, 2U> cborTooSmall{0xCCU, 0xCCU};
     const auto cborInsufficient = Serialise<Cbor>(
         cborPayload,
-        cborTooSmall.data(),
-        cborTooSmall.size()
+        std::as_writable_bytes(
+            std::span{
+                cborTooSmall.data(),
+                cborTooSmall.size()
+            }
+        )
     );
     assert(cborInsufficient.Status == SerialisationStatus::OutputBufferTooSmall);
     assert(cborInsufficient.RequiredBytes == cborPayloadMeasurement.RequiredBytes);
@@ -2204,6 +2503,14 @@ int main() {
     );
     assert(cborDecode.Status == DeserialisationStatus::TypeMismatch);
     assert(cborDouble == 9.0);
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 9U>{
+            0xFBU, 0x3FU, 0xF8U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U
+        },
+        cborDouble
+    );
+    assert(cborDecode.IsSuccessful());
+    assert(cborDouble == 1.5);
 
     ESPressio::Bounded::String<4U> cborDecodedText{};
     assert(
@@ -2228,6 +2535,15 @@ int main() {
     );
     assert(cborDecode.IsSuccessful());
     assert(cborDecodedText.View() == "A");
+    cborDecode = DecodeCborBytes(
+        std::array<std::uint8_t, 4U>{0x63U, 0xE2U, 0x82U, 0xACU},
+        cborDecodedText
+    );
+    assert(cborDecode.IsSuccessful());
+    assert(cborDecodedText.Size() == 3U);
+    assert(static_cast<std::uint8_t>(cborDecodedText[0U]) == 0xE2U);
+    assert(static_cast<std::uint8_t>(cborDecodedText[1U]) == 0x82U);
+    assert(static_cast<std::uint8_t>(cborDecodedText[2U]) == 0xACU);
 
     ESPressio::Bounded::Bytes<2U> cborDecodedBytes{};
     assert(
@@ -2315,7 +2631,10 @@ int main() {
         0x07U, 0x61U, 0x41U,
         0x04U, 0xA1U, 0x09U, 0x0BU
     };
-    cborDecode = DecodeCborBytes(cborPayloadOutOfOrder, cborDecodedPayload);
+    cborDecode = DecodeCborBytes(
+        cborPayloadOutOfOrder,
+        cborDecodedPayload
+    );
     assert(cborDecode.IsSuccessful());
     assert(cborDecodedPayload.Name.View() == "A");
     assert(!cborDecodedPayload.Count.has_value());
@@ -2332,14 +2651,20 @@ int main() {
         0x02U, 0x01U,
         0x04U, 0xA1U, 0x09U, 0x1AU, 0x00U
     };
-    cborDecode = DecodeCborBytes(cborPayloadRangeFailure, cborDecodedPayload);
+    cborDecode = DecodeCborBytes(
+        cborPayloadRangeFailure,
+        cborDecodedPayload
+    );
     assert(cborDecode.Status == DeserialisationStatus::MalformedRepresentation);
     assert(cborDecodedPayload.Name.View() == "stable");
     assert(cborDecodedPayload.Count.has_value() && cborDecodedPayload.Count.value() == 77U);
     assert(cborDecodedPayload.Child.Value == 66U);
 
     const std::array<std::uint8_t, 1U> cborMissingRequired{0xA0U};
-    cborDecode = DecodeCborBytes(cborMissingRequired, cborDecodedPayload);
+    cborDecode = DecodeCborBytes(
+        cborMissingRequired,
+        cborDecodedPayload
+    );
     assert(cborDecode.Status == DeserialisationStatus::MissingRequiredField);
     assert(cborDecodedPayload.Child.Value == 66U);
 
@@ -2348,7 +2673,10 @@ int main() {
         0x04U, 0xA1U, 0x09U, 0x01U,
         0x04U, 0xA0U
     };
-    cborDecode = DecodeCborBytes(cborDuplicateField, cborDecodedPayload);
+    cborDecode = DecodeCborBytes(
+        cborDuplicateField,
+        cborDecodedPayload
+    );
     assert(cborDecode.Status == DeserialisationStatus::DuplicateField);
     assert(cborDecodedPayload.Child.Value == 66U);
 
@@ -2357,7 +2685,10 @@ int main() {
         0x0AU, 0x82U, 0x01U, 0x02U,
         0x04U, 0xA1U, 0x09U
     };
-    cborDecode = DecodeCborBytes(cborUnknownExact, cborDecodedPayload);
+    cborDecode = DecodeCborBytes(
+        cborUnknownExact,
+        cborDecodedPayload
+    );
     assert(cborDecode.Status == DeserialisationStatus::UnknownField);
     assert(cborDecodedPayload.Child.Value == 66U);
 
@@ -2373,8 +2704,12 @@ int main() {
         FieldProfile::Numeric,
         StrictnessPolicy::IgnoreUnknownFields
     >(
-        cborUnknownIgnored.data(),
-        cborUnknownIgnored.size(),
+        std::as_bytes(
+            std::span{
+                cborUnknownIgnored.data(),
+                cborUnknownIgnored.size()
+            }
+        ),
         cborDecodedPayload
     );
     assert(cborDecode.IsSuccessful());
@@ -2389,8 +2724,12 @@ int main() {
         StrictnessPolicy::IgnoreUnknownFields,
         ParserLimits<32U, 1U>
     >(
-        cborUnknownIgnored.data(),
-        cborUnknownIgnored.size(),
+        std::as_bytes(
+            std::span{
+                cborUnknownIgnored.data(),
+                cborUnknownIgnored.size()
+            }
+        ),
         cborDecodedPayload
     );
     assert(cborDecode.Status == DeserialisationStatus::ResourceLimitExceeded);
@@ -2398,7 +2737,10 @@ int main() {
 
     const std::array<std::uint8_t, 2U> cborTrailing{0x01U, 0x02U};
     cborUnsigned8 = 9U;
-    cborDecode = DecodeCborBytes(cborTrailing, cborUnsigned8);
+    cborDecode = DecodeCborBytes(
+        cborTrailing,
+        cborUnsigned8
+    );
     assert(cborDecode.Status == DeserialisationStatus::TrailingData);
     assert(cborUnsigned8 == 9U);
 
@@ -2456,8 +2798,12 @@ int main() {
         RootProfile::TypedEnvelope
     >(
         cborEnvelopeSource,
-        cborEnvelopeOutput.data(),
-        cborEnvelopeOutput.size()
+        std::as_writable_bytes(
+            std::span{
+                cborEnvelopeOutput.data(),
+                cborEnvelopeOutput.size()
+            }
+        )
     );
     assert(cborEnvelopeSerialisation.IsSuccessful());
     assert(cborEnvelopeOutput[0U] == 0x83U);
@@ -2474,8 +2820,12 @@ int main() {
         Cbor,
         RootProfile::TypedEnvelope
     >(
-        cborEnvelopeOutput.data(),
-        cborEnvelopeSerialisation.BytesWritten,
+        std::as_bytes(
+            std::span{
+                cborEnvelopeOutput.data(),
+                cborEnvelopeSerialisation.BytesWritten
+            }
+        ),
         cborEnvelopeDestination
     );
     assert(cborEnvelopeDecode.IsSuccessful());
@@ -2486,8 +2836,12 @@ int main() {
     cborBadEnvelope[1U] = 0x02U;
     cborEnvelopeDestination.Child.Value = 99U;
     cborEnvelopeDecode = Deserialise<Cbor, RootProfile::TypedEnvelope>(
-        cborBadEnvelope.data(),
-        cborEnvelopeSerialisation.BytesWritten,
+        std::as_bytes(
+            std::span{
+                cborBadEnvelope.data(),
+                cborEnvelopeSerialisation.BytesWritten
+            }
+        ),
         cborEnvelopeDestination
     );
     assert(cborEnvelopeDecode.Status == DeserialisationStatus::UnsupportedEnvelopeVersion);
@@ -2497,8 +2851,12 @@ int main() {
     cborBadEnvelope[3U] ^= 0x01U;
     cborEnvelopeDestination.Child.Value = 99U;
     cborEnvelopeDecode = Deserialise<Cbor, RootProfile::TypedEnvelope>(
-        cborBadEnvelope.data(),
-        cborEnvelopeSerialisation.BytesWritten,
+        std::as_bytes(
+            std::span{
+                cborBadEnvelope.data(),
+                cborEnvelopeSerialisation.BytesWritten
+            }
+        ),
         cborEnvelopeDestination
     );
     assert(cborEnvelopeDecode.Status == DeserialisationStatus::TypeIdentifierMismatch);
@@ -2506,7 +2864,10 @@ int main() {
 
     const std::array<std::uint8_t, 3U> cborIndefiniteArray{0x9FU, 0x01U, 0xFFU};
     cborDecodedArray = {9U, 9U, 9U};
-    cborDecode = DecodeCborBytes(cborIndefiniteArray, cborDecodedArray);
+    cborDecode = DecodeCborBytes(
+        cborIndefiniteArray,
+        cborDecodedArray
+    );
     assert(cborDecode.Status == DeserialisationStatus::MalformedRepresentation);
     assert((cborDecodedArray == std::array<std::uint16_t, 3U>{9U, 9U, 9U}));
 

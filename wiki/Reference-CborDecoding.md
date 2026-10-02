@@ -21,7 +21,7 @@ This header implements replayable, allocation-free V1 Numeric CBOR validation an
 
 `SkipCborValue` structurally validates/skips unknown V1 values without retaining a DOM. `DecodeCborFixedArray` requires the exact compile-time extent. `DecodeCborVector` validates capacity before bounded population.
 
-`DecodeCborSchemaField` dispatches runtime numeric Field identity to compile-time `FieldBinding`. `FinaliseCborSchemaPresence` rejects missing required Fields and resets omitted Optional Fields only during population. `DecodeCborSchema` accepts arbitrary input Field order, rejects duplicate numeric identifiers, and applies Exact/IgnoreUnknown strictness through the fixed 256-bit presence map.
+`DecodeCborSchemaField` dispatches runtime numeric Field identity to compile-time `FieldBinding`. `FinaliseCborSchemaPresence` rejects missing required Fields and resets omitted Optional Fields only during population. `DecodeCborSchema` accepts arbitrary input Field order, rejects duplicate numeric identifiers, and applies Exact/IgnoreUnknown strictness through the shared 256-entry `EDP-BoundedTopology::BoundedIndexSet` presence set.
 
 ## `DecodeCborValue`
 

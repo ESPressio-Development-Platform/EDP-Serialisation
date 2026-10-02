@@ -25,7 +25,7 @@ The identifier is an exact eight-byte CBOR byte string in `TypeIdentifier::Bytes
 
 ## Decoding and transactionality
 
-`Deserialise<Cbor,...>` validates one complete caller-owned contiguous input before replaying it for population. Any validation failure reports `BytesConsumed == 0` and leaves the destination unchanged. Trailing bytes fail.
+`Deserialise<Cbor,...>` accepts one caller-owned `std::span<const std::byte>`, validates the complete contiguous input before replaying it for population. Any validation failure reports `BytesConsumed == 0` and leaves the destination unchanged. Trailing bytes fail.
 
 `StrictnessPolicy::Exact` rejects unknown numeric Fields. `IgnoreUnknownFields` structurally validates and skips unknown values subject to `ParserLimits`; duplicate numeric Field identities always fail.
 
@@ -33,8 +33,8 @@ The decoder rejects non-canonical integer/length heads, indefinite-length contai
 
 ## Output ownership
 
-`Measure<Cbor>` uses the shared zero-storage counting sink. `Serialise<Cbor>` performs exact preflight measurement and writes directly into caller-owned bytes only when capacity is sufficient. Range writes reuse the same EDP-Memory `ByteOperations` provider contract used by JSON; no CBOR-specific allocator or output owner exists.
+`Measure<Cbor>` uses the shared zero-storage counting sink. `Serialise<Cbor>` accepts caller-owned `std::span<std::byte>`, performs exact preflight measurement, and writes directly into that span only when capacity is sufficient. Range writes reuse the same EDP-Memory `ByteOperations` provider contract used by JSON; no CBOR-specific allocator or output owner exists.
 
 ## Demo
 
-`demos/cbor-numeric` is maintained in Arduino IDE, PlatformIO Arduino, and PlatformIO ESP-IDF forms. It round-trips an identified schema using the CBOR Typed Envelope while demonstrating integer, text-string, byte-string, canonical Field ordering, and transactional decoding.
+`demos/cbor-numeric` is maintained in Arduino IDE, PlatformIO Arduino, and PlatformIO ESP-IDF forms. The PlatformIO-format projects are built with PIOArduino. Each form round-trips the same identified schema through both Known-Type Body and Typed Envelope roots while demonstrating integer, text-string, byte-string, canonical Field ordering, and transactional decoding.

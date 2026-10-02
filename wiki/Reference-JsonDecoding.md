@@ -73,7 +73,7 @@ Unknown-object key replay can recursively validate earlier values. This is delib
 - `JsonNumericFieldDecodingPolicy` is the zero-state Numeric schema-key policy. `DecodeJsonValue<TPopulate,...>` is a Numeric wrapper which constructs that policy and delegates to the policy-aware dispatcher. `JsonLocalisedText.hpp` supplies a LocalisedText schema decoder overload selected by policy type.
 - `DecodeJsonFixedArray` — requires exactly the compile-time fixed extent and propagates the active Field policy to nested values.
 - `DecodeJsonVector` — accepts up to `BoundedVectorTraits<T>::Capacity`; population clears only after pass-one validation and activates inline slots with `EmplaceBack`.
-- `IsFieldSeen` / `MarkFieldSeen` — operate on the fixed 32-byte presence bitmap covering all 256 possible numeric FieldIdentifiers.
+- `IsSchemaFieldSeen` / `MarkSchemaFieldSeen` — use `SchemaFieldPresenceSet`, a reusable `EDP-BoundedTopology::BoundedIndexSet` covering all 256 possible numeric FieldIdentifiers.
 - `DecodeJsonSchemaField` — runtime-ID to compile-time `FieldBinding` dispatch while propagating the active Field policy into the Field value. Optional null/absence semantics and Field-local diagnostics are handled here.
 - `FinaliseJsonSchemaPresence` — rejects missing required Fields and resets absent Optional Fields only during population.
 - `DecodeJsonSchemaWithFieldPolicy` for `JsonNumericFieldDecodingPolicy` validates Numeric JSON objects in arbitrary member order, detects duplicate numeric IDs, applies Exact/IgnoreUnknown strictness, and invokes required-presence validation. LocalisedText provides its own overload over the same Field dispatch/presence helpers.
@@ -84,4 +84,4 @@ The public operation runs the selected policy-aware decoder with `TPopulate=fals
 
 ## Memory and concurrency
 
-All retained parser state is caller input, fixed-size stack state, compile-time capacities, the 32-byte schema presence bitmap, or bounded destination storage. No allocation, registry, DOM, mutex, global state, or background lifecycle exists. Calls are reentrant for independent caller-owned inputs/destinations; no ISR-safety guarantee is made for `std::from_chars` or arbitrary user adapters.
+All retained parser state is caller input, fixed-size stack state, compile-time capacities, the 32-byte `SchemaFieldPresenceSet` backed by `EDP-BoundedTopology::BoundedIndexSet`, or bounded destination storage. No allocation, registry, DOM, mutex, global state, or background lifecycle exists. Calls are reentrant for independent caller-owned inputs/destinations; no ISR-safety guarantee is made for `std::from_chars` or arbitrary user adapters.
