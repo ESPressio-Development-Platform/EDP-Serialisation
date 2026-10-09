@@ -894,23 +894,25 @@ namespace ESPressio::Serialisation::Detail {
         return CborDecodingStatus::Succeeded;
     }
 
-    /// Dispatches one runtime CBOR FieldIdentifier to its compile-time schema binding.
+    /// Dispatches one runtime CBOR FieldIdentifier using only declared Field bindings.
     ///
-    /// @tparam TIdentifier Current candidate one-byte FieldIdentifier.
-    /// @tparam TPopulate false for validation-only traversal; true for population.
+    /// Runtime schema dispatch must not recurse through every possible numeric
+    /// identifier: that generated up to 256 genuine Xtensa stack frames and
+    /// could overflow a constrained FreeRTOS worker.
+    ///
+    /// @tparam TPopulate Whether to populate or only validate the destination.
     /// @tparam TStrictness Compile-time unknown-Field policy.
     /// @tparam TParserLimits Compile-time parser resource policy.
     /// @tparam TValue Serialisable schema target Type.
-    /// @param cursor Caller-input cursor positioned at the Field value.
-    /// @param identifier Runtime FieldIdentifier to dispatch.
-    /// @param destination Target schema or validation seed.
+    /// @param cursor Cursor positioned at the selected Field value.
+    /// @param identifier Runtime numeric Field identity.
+    /// @param destination Destination schema or validation seed.
     /// @param depth Current syntactic container depth.
     /// @param skipState Unknown-value skip accounting state.
-    /// @param diagnostic Diagnostic payload populated on failure.
-    /// @param knownField Set true when the schema owns the identifier.
-    /// @return Complete internal CBOR decoding outcome.
+    /// @param diagnostic Detailed failure information.
+    /// @param knownField True when a declared schema Field was selected.
+    /// @return Decoding outcome.
     template<
-        std::uint16_t TIdentifier,
         bool TPopulate,
         StrictnessPolicy TStrictness,
         class TParserLimits,
@@ -925,92 +927,84 @@ namespace ESPressio::Serialisation::Detail {
         Diagnostic& diagnostic,
         bool& knownField
     ) noexcept {
-        if constexpr (TIdentifier > 255U) {
-            knownField = false;
-            return CborDecodingStatus::Succeeded;
-        } else {
-            if (identifier.Value() != static_cast<System::FieldIdentifier::Storage>(TIdentifier)) {
-                return DecodeCborSchemaField<
-                    TIdentifier + 1U,
+        knownField = false;
+        auto status = CborDecodingStatus::Succeeded;
+
+        System::ForEachField<TValue>([&]<class TField>() constexpr {
+            if (
+                knownField ||
+                TField::Identifier.Value() != identifier.Value()
+            ) {
+                return;
+            }
+            knownField = true;
+            using FieldValue =
+                std::remove_cv_t<System::FieldValueOf<TField>>;
+
+            if constexpr (OptionalValueTraits<FieldValue>::IsValue) {
+                if (!cursor.IsAtEnd() && cursor.Current() == 0xF6U) {
+                    cursor.Advance();
+                    if constexpr (TPopulate) {
+                        (destination->*TField::Member).reset();
+                    }
+                    return;
+                }
+
+                using Element =
+                    typename OptionalValueTraits<FieldValue>::Element;
+                Element validationElement{};
+                Element* element = &validationElement;
+                if constexpr (TPopulate) {
+                    auto& optional = destination->*TField::Member;
+                    if (!optional.has_value()) {
+                        optional.emplace();
+                    }
+                    element = &optional.value();
+                } else if (destination != nullptr) {
+                    auto& optional = destination->*TField::Member;
+                    if (optional.has_value()) {
+                        element = &optional.value();
+                    }
+                }
+
+                status = DecodeCborValue<
                     TPopulate,
                     TStrictness,
                     TParserLimits
                 >(
                     cursor,
-                    identifier,
-                    destination,
+                    element,
                     depth,
                     skipState,
-                    diagnostic,
-                    knownField
+                    diagnostic
+                );
+            } else {
+                FieldValue* field = destination == nullptr
+                    ? nullptr
+                    : &(destination->*TField::Member);
+                status = DecodeCborValue<
+                    TPopulate,
+                    TStrictness,
+                    TParserLimits
+                >(
+                    cursor,
+                    field,
+                    depth,
+                    skipState,
+                    diagnostic
                 );
             }
-            using Field = typename FieldBindingForIdentifier<
-                System::FieldsOf<TValue>,
-                static_cast<System::FieldIdentifier::Storage>(TIdentifier)
-            >::Type;
-            if constexpr (std::is_void_v<Field>) {
-                knownField = false;
-                return CborDecodingStatus::Succeeded;
-            } else {
-                knownField = true;
-                using FieldValue = std::remove_cv_t<System::FieldValueOf<Field>>;
-                if constexpr (OptionalValueTraits<FieldValue>::IsValue) {
-                    if (!cursor.IsAtEnd() && cursor.Current() == 0xF6U) {
-                        cursor.Advance();
-                        if constexpr (TPopulate) { (destination->*Field::Member).reset(); }
-                        return CborDecodingStatus::Succeeded;
-                    }
-                    using Element = typename OptionalValueTraits<FieldValue>::Element;
-                    Element validationElement{};
-                    Element* element = &validationElement;
-                    if constexpr (TPopulate) {
-                        auto& optional = destination->*Field::Member;
-                        if (!optional.has_value()) { optional.emplace(); }
-                        element = &optional.value();
-                    } else if (destination != nullptr) {
-                        auto& optional = destination->*Field::Member;
-                        if (optional.has_value()) { element = &optional.value(); }
-                    }
-                    const auto fieldStatus = DecodeCborValue<
-                        TPopulate,
-                        TStrictness,
-                        TParserLimits
-                    >(
-                        cursor,
-                        element,
-                        depth,
-                        skipState,
-                        diagnostic
-                    );
-                    if (fieldStatus != CborDecodingStatus::Succeeded) {
-                        if (!diagnostic.Type.has_value()) { diagnostic.Type = TValue::Identifier; }
-                        if (!diagnostic.Field.has_value()) { diagnostic.Field = Field::Identifier; }
-                    }
-                    return fieldStatus;
-                } else {
-                    FieldValue* field = destination == nullptr
-                        ? nullptr
-                        : &(destination->*Field::Member);
-                    const auto fieldStatus = DecodeCborValue<
-                        TPopulate,
-                        TStrictness,
-                        TParserLimits
-                    >(
-                        cursor,
-                        field,
-                        depth,
-                        skipState,
-                        diagnostic
-                    );
-                    if (fieldStatus != CborDecodingStatus::Succeeded) {
-                        if (!diagnostic.Type.has_value()) { diagnostic.Type = TValue::Identifier; }
-                        if (!diagnostic.Field.has_value()) { diagnostic.Field = Field::Identifier; }
-                    }
-                    return fieldStatus;
+
+            if (status != CborDecodingStatus::Succeeded) {
+                if (!diagnostic.Type.has_value()) {
+                    diagnostic.Type = TValue::Identifier;
+                }
+                if (!diagnostic.Field.has_value()) {
+                    diagnostic.Field = TField::Identifier;
                 }
             }
-        }
+        });
+        return status;
     }
 
     /// Validates required Field presence and resets omitted Optional Fields during population.
@@ -1128,7 +1122,6 @@ namespace ESPressio::Serialisation::Detail {
 
             bool knownField = false;
             status = DecodeCborSchemaField<
-                0U,
                 TPopulate,
                 TStrictness,
                 TParserLimits
