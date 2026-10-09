@@ -908,7 +908,6 @@ namespace ESPressio::Serialisation::Detail {
 
                     bool knownField = false;
                     status = DecodeJsonSchemaField<
-                        0U,
                         TPopulate,
                         TStrictness,
                         TParserLimits
