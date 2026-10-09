@@ -2040,16 +2040,17 @@ namespace ESPressio::Serialisation::Detail {
         }
     }
 
-    /// Dispatches one runtime FieldIdentifier to its compile-time schema binding.
+    /// Dispatches a JSON numeric FieldIdentifier only across actual FieldSet bindings.
     ///
-    /// @tparam TIdentifier Current compile-time numeric FieldIdentifier candidate.
-    /// @tparam TPopulate false for validation-only traversal; true for destination population.
+    /// Avoid the previous 256-level recursive numeric-id dispatch, whose
+    /// call frames can exhaust constrained embedded workers for sparse schemas.
+    ///
+    /// @tparam TPopulate Whether to populate or only validate the destination.
     /// @tparam TStrictness Compile-time unknown-Field policy.
     /// @tparam TParserLimits Compile-time parser resource policy.
-    /// @tparam TFieldPolicy Schema Field-key policy propagated to the selected Field value.
-    /// @tparam TValue Schema owner Type.
+    /// @tparam TFieldPolicy Field naming and decoding policy.
+    /// @tparam TValue Serialisable schema target Type.
     template<
-        std::uint16_t TIdentifier,
         bool TPopulate,
         StrictnessPolicy TStrictness,
         class TParserLimits,
@@ -2066,104 +2067,102 @@ namespace ESPressio::Serialisation::Detail {
         Diagnostic& diagnostic,
         bool& knownField
     ) noexcept {
-        if constexpr (TIdentifier > 255U) {
-            knownField = false;
-            return JsonDecodingStatus::Succeeded;
-        } else {
-            if (identifier.Value() != static_cast<System::FieldIdentifier::Storage>(TIdentifier)) {
-                return DecodeJsonSchemaField<
-                    TIdentifier + 1U,
+        knownField = false;
+        auto status = JsonDecodingStatus::Succeeded;
+
+        System::ForEachField<TValue>([&]<class TField>() constexpr {
+            if (
+                knownField ||
+                TField::Identifier.Value() != identifier.Value()
+            ) {
+                return;
+            }
+            knownField = true;
+            using FieldValue =
+                std::remove_cv_t<System::FieldValueOf<TField>>;
+
+            if constexpr (OptionalValueTraits<FieldValue>::IsValue) {
+                SkipJsonWhitespace(cursor);
+                if (
+                    !cursor.IsAtEnd() &&
+                    cursor.Current() == static_cast<std::uint8_t>('n')
+                ) {
+                    const auto nullStart = cursor.Position();
+                    status = ConsumeJsonLiteral(
+                        cursor,
+                        "null",
+                        4U,
+                        diagnostic
+                    );
+                    if (status != JsonDecodingStatus::Succeeded) {
+                        diagnostic.ByteOffset = nullStart;
+                        diagnostic.Type = TValue::Identifier;
+                        diagnostic.Field = TField::Identifier;
+                        return;
+                    }
+                    if constexpr (TPopulate) {
+                        (destination->*TField::Member).reset();
+                    }
+                    return;
+                }
+
+                using Element =
+                    typename OptionalValueTraits<FieldValue>::Element;
+                Element validationElement{};
+                Element* element = &validationElement;
+                if constexpr (TPopulate) {
+                    auto& optional = destination->*TField::Member;
+                    if (!optional.has_value()) {
+                        optional.emplace();
+                    }
+                    element = &optional.value();
+                } else if (destination != nullptr) {
+                    auto& optional = destination->*TField::Member;
+                    if (optional.has_value()) {
+                        element = &optional.value();
+                    }
+                }
+
+                status = DecodeJsonValueWithFieldPolicy<
                     TPopulate,
                     TStrictness,
                     TParserLimits
                 >(
                     fieldPolicy,
                     cursor,
-                    identifier,
-                    destination,
+                    element,
                     depth,
                     skipState,
-                    diagnostic,
-                    knownField
+                    diagnostic
+                );
+            } else {
+                FieldValue* field = destination == nullptr
+                    ? nullptr
+                    : &(destination->*TField::Member);
+                status = DecodeJsonValueWithFieldPolicy<
+                    TPopulate,
+                    TStrictness,
+                    TParserLimits
+                >(
+                    fieldPolicy,
+                    cursor,
+                    field,
+                    depth,
+                    skipState,
+                    diagnostic
                 );
             }
 
-            using Field = typename FieldBindingForIdentifier<
-                System::FieldsOf<TValue>,
-                static_cast<System::FieldIdentifier::Storage>(TIdentifier)
-            >::Type;
-            if constexpr (std::is_void_v<Field>) {
-                knownField = false;
-                return JsonDecodingStatus::Succeeded;
-            } else {
-                knownField = true;
-                using FieldValue = std::remove_cv_t<System::FieldValueOf<Field>>;
-                if constexpr (OptionalValueTraits<FieldValue>::IsValue) {
-                    SkipJsonWhitespace(cursor);
-                    if (!cursor.IsAtEnd() && cursor.Current() == static_cast<std::uint8_t>('n')) {
-                        const auto nullStart = cursor.Position();
-                        const auto nullStatus = ConsumeJsonLiteral(
-                            cursor,
-                            "null",
-                            4U,
-                            diagnostic
-                        );
-                        if (nullStatus != JsonDecodingStatus::Succeeded) {
-                            diagnostic.ByteOffset = nullStart;
-                            diagnostic.Type = TValue::Identifier;
-                            diagnostic.Field = Field::Identifier;
-                            return nullStatus;
-                        }
-                        if constexpr (TPopulate) {
-                            (destination->*Field::Member).reset();
-                        }
-                        return JsonDecodingStatus::Succeeded;
-                    }
-
-                    using Element = typename OptionalValueTraits<FieldValue>::Element;
-                    Element validationElement{};
-                    Element* element = &validationElement;
-                    if constexpr (TPopulate) {
-                        auto& optional = destination->*Field::Member;
-                        if (!optional.has_value()) { optional.emplace(); }
-                        element = &optional.value();
-                    } else if (destination != nullptr) {
-                        auto& optional = destination->*Field::Member;
-                        if (optional.has_value()) { element = &optional.value(); }
-                    }
-                    const auto fieldStatus = DecodeJsonValueWithFieldPolicy<TPopulate, TStrictness, TParserLimits>(
-                        fieldPolicy,
-                        cursor,
-                        element,
-                        depth,
-                        skipState,
-                        diagnostic
-                    );
-                    if (fieldStatus != JsonDecodingStatus::Succeeded) {
-                        if (!diagnostic.Type.has_value()) { diagnostic.Type = TValue::Identifier; }
-                        if (!diagnostic.Field.has_value()) { diagnostic.Field = Field::Identifier; }
-                    }
-                    return fieldStatus;
-                } else {
-                    FieldValue* field = destination == nullptr
-                        ? nullptr
-                        : &(destination->*Field::Member);
-                    const auto fieldStatus = DecodeJsonValueWithFieldPolicy<TPopulate, TStrictness, TParserLimits>(
-                        fieldPolicy,
-                        cursor,
-                        field,
-                        depth,
-                        skipState,
-                        diagnostic
-                    );
-                    if (fieldStatus != JsonDecodingStatus::Succeeded) {
-                        if (!diagnostic.Type.has_value()) { diagnostic.Type = TValue::Identifier; }
-                        if (!diagnostic.Field.has_value()) { diagnostic.Field = Field::Identifier; }
-                    }
-                    return fieldStatus;
+            if (status != JsonDecodingStatus::Succeeded) {
+                if (!diagnostic.Type.has_value()) {
+                    diagnostic.Type = TValue::Identifier;
+                }
+                if (!diagnostic.Field.has_value()) {
+                    diagnostic.Field = TField::Identifier;
                 }
             }
-        }
+        });
+        return status;
     }
 
     /// Validates required-Field presence and resets omitted Optional Fields during population.
@@ -2278,7 +2277,6 @@ namespace ESPressio::Serialisation::Detail {
 
             bool knownField = false;
             status = DecodeJsonSchemaField<
-                0U,
                 TPopulate,
                 TStrictness,
                 TParserLimits
