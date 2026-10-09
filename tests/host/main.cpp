@@ -1701,6 +1701,33 @@ int main() {
     );
     assert(decodeResult.Status == DeserialisationStatus::MalformedRepresentation);
 
+    // Sparse 0/100/255 Field dispatch must select actual bindings without
+    // recursively consuming one stack frame for every absent numeric ID.
+    TestSupport::SparseOptionalFields decodedSparseJson{};
+    auto sparseJsonResult = DecodeJsonLiteral(
+        "{\"255\":24,\"100\":3,\"0\":1}",
+        decodedSparseJson
+    );
+    assert(sparseJsonResult.IsSuccessful());
+    assert(decodedSparseJson.Low == 1U);
+    assert(decodedSparseJson.Middle == 3U);
+    assert(decodedSparseJson.High.has_value());
+    assert(*decodedSparseJson.High == 24U);
+
+    sparseJsonResult = DecodeJsonLiteral(
+        "{\"100\":3,\"0\":1}",
+        decodedSparseJson
+    );
+    assert(sparseJsonResult.IsSuccessful());
+    assert(!decodedSparseJson.High.has_value());
+
+    sparseJsonResult = DecodeJsonLiteral(
+        "{\"255\":null,\"0\":1,\"100\":3}",
+        decodedSparseJson
+    );
+    assert(sparseJsonResult.IsSuccessful());
+    assert(!decodedSparseJson.High.has_value());
+
     // Typed Envelope canonical output and transactional metadata validation.
 
     TestSupport::Payload envelopeSource{};
@@ -2486,6 +2513,32 @@ int main() {
     assert(cborInsufficient.RequiredBytes == cborPayloadMeasurement.RequiredBytes);
     assert(cborInsufficient.BytesWritten == 0U);
     assert(cborTooSmall[0U] == 0xCCU && cborTooSmall[1U] == 0xCCU);
+
+    // Decoding a map with Field 255 must not recurse through 256 absent
+    // numeric-id candidates; absent Optional clears stale destination data.
+    TestSupport::SparseOptionalFields decodedSparseCbor{};
+    decodedSparseCbor.High = 11U;
+    const auto absentHigh = DecodeCborBytes(
+        std::array<std::uint8_t, 6U>{
+            0xA2U, 0x00U, 0x01U, 0x18U, 0x64U, 0x03U
+        },
+        decodedSparseCbor
+    );
+    assert(absentHigh.IsSuccessful());
+    assert(decodedSparseCbor.Low == 1U);
+    assert(decodedSparseCbor.Middle == 3U);
+    assert(!decodedSparseCbor.High.has_value());
+
+    const auto presentHigh = DecodeCborBytes(
+        std::array<std::uint8_t, 10U>{
+            0xA3U, 0x00U, 0x01U, 0x18U, 0x64U, 0x03U,
+            0x18U, 0xFFU, 0x18U, 0x18U
+        },
+        decodedSparseCbor
+    );
+    assert(presentHigh.IsSuccessful());
+    assert(decodedSparseCbor.High.has_value());
+    assert(*decodedSparseCbor.High == 24U);
 
     // CBOR exact-category/canonical decoding and transactionality.
 
