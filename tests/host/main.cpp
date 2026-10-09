@@ -498,6 +498,43 @@ namespace TestSupport {
 
     };
 
+
+    /// Sparse optional schema exposing largest FieldIdentifier under test.
+    ///
+    /// Deliberately unsorted declared bindings prove canonical ordering does
+    /// not rely upon recursive traversal of all 256 candidate identifiers.
+    struct SparseOptionalFields final {
+
+        // Schema payload.
+
+        /// Optional high-identifier data.
+        std::optional<std::uint8_t> High{};
+
+        /// Required middle-identifier data.
+        std::uint8_t Middle = 3U;
+
+        /// Required low-identifier data.
+        std::uint8_t Low = 1U;
+
+        // Schema metadata.
+
+        /// Type-local test identity.
+        inline static constexpr ESPressio::System::TypeIdentifier Identifier{
+            ESPressio::System::TypeIdentifier::Storage{
+                0x00U, 0x00U, 0x01U, 0x00U,
+                0x00U, 0x00U, 0x00U, 0x06U
+            }
+        };
+
+        /// Actual FieldSet traversal follows non-canonical descending order.
+        using Fields = ESPressio::System::FieldSet<
+            ESPressio::System::FieldBinding<&SparseOptionalFields::High, 255U>,
+            ESPressio::System::FieldBinding<&SparseOptionalFields::Middle, 100U>,
+            ESPressio::System::FieldBinding<&SparseOptionalFields::Low, 0U>
+        >;
+
+    };
+
 } // TestSupport
 
 namespace ESPressio::Serialisation {
@@ -2376,6 +2413,26 @@ int main() {
     ExpectCanonicalCbor(
         TestSupport::StrongCounter{77U},
         std::array<std::uint8_t, 2U>{0x18U, 0x4DU}
+    );
+
+    // Sparse schema boundary regression: canonical ascending numeric keys
+    // 0, 100, 255, despite reverse declared FieldSet ordering. Optional
+    // omission must not force 256 nested runtime stack frames.
+    TestSupport::SparseOptionalFields sparseSchema{};
+    ExpectCanonicalCbor(
+        sparseSchema,
+        std::array<std::uint8_t, 6U>{
+            0xA2U, 0x00U, 0x01U, 0x18U, 0x64U, 0x03U
+        }
+    );
+
+    sparseSchema.High = 24U;
+    ExpectCanonicalCbor(
+        sparseSchema,
+        std::array<std::uint8_t, 10U>{
+            0xA3U, 0x00U, 0x01U, 0x18U, 0x64U, 0x03U,
+            0x18U, 0xFFU, 0x18U, 0x18U
+        }
     );
 
     // CBOR preflight failures preserve caller output exactly.
