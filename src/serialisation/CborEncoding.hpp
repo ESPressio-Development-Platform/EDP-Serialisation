@@ -371,74 +371,95 @@ namespace ESPressio::Serialisation::Detail {
         return count;
     }
 
-    /// Emits schema Fields in ascending semantic FieldIdentifier order.
+    /// Emits only declared Fields in ascending FieldIdentifier order.
     ///
-    /// @tparam TIdentifier Current candidate one-byte FieldIdentifier.
+    /// Iterative schema traversal avoids the former 256-deep recursive
+    /// instantiation, which can exceed an embedded FreeRTOS worker stack.
+    /// FieldSet::ForEach uses a bounded fold over actual declared Fields.
+    ///
     /// @tparam TSink Codec-neutral sink Type.
     /// @tparam TValue Serialisable schema Type.
     /// @param sink Destination sink.
     /// @param value Source schema object.
     /// @param diagnostic Diagnostic payload populated on failure.
-    /// @return Complete internal CBOR encoding outcome.
-    template<std::uint16_t TIdentifier, class TSink, class TValue>
+    /// @return Internal CBOR encoding outcome.
+    template<class TSink, class TValue>
     CborEncodingStatus EncodeCborSchemaFields(
         TSink& sink,
         const TValue& value,
         Diagnostic& diagnostic
     ) noexcept {
-        if constexpr (TIdentifier > 255U) {
-            static_cast<void>(sink);
-            static_cast<void>(value);
-            static_cast<void>(diagnostic);
-            return CborEncodingStatus::Succeeded;
-        } else {
-            using Field = typename FieldBindingForIdentifier<
-                System::FieldsOf<TValue>,
-                static_cast<System::FieldIdentifier::Storage>(TIdentifier)
-            >::Type;
-            if constexpr (!std::is_void_v<Field>) {
-                using FieldValue = std::remove_cv_t<System::FieldValueOf<Field>>;
-                const auto& fieldValue = value.*Field::Member;
+        std::uint16_t nextLowerBound = 0U;
+
+        for (
+            std::size_t position = 0U;
+            position < System::FieldsOf<TValue>::Count;
+            ++position
+        ) {
+            std::uint16_t selected = 256U;
+            System::ForEachField<TValue>([&]<class TField>() constexpr {
+                const auto identifier =
+                    static_cast<std::uint16_t>(TField::Identifier.Value());
+                if (
+                    identifier >= nextLowerBound &&
+                    identifier < selected
+                ) {
+                    selected = identifier;
+                }
+            });
+            if (selected == 256U) {
+                return CborEncodingStatus::ResourceLimitExceeded;
+            }
+
+            auto status = CborEncodingStatus::Succeeded;
+            System::ForEachField<TValue>([&]<class TField>() constexpr {
+                if (
+                    status != CborEncodingStatus::Succeeded ||
+                    TField::Identifier.Value() != selected
+                ) {
+                    return;
+                }
+                using FieldValue =
+                    std::remove_cv_t<System::FieldValueOf<TField>>;
+                const auto& fieldValue = value.*TField::Member;
+
                 bool emitted = true;
                 if constexpr (OptionalValueTraits<FieldValue>::IsValue) {
                     emitted = fieldValue.has_value();
                 }
+                if (!emitted) { return; }
 
-                if (emitted) {
-                    auto status = EncodeCborHead(
-                        sink,
-                        0U,
-                        static_cast<std::uint64_t>(Field::Identifier.Value()),
-                        diagnostic
-                    );
-                    if (status == CborEncodingStatus::Succeeded) {
-                        if constexpr (OptionalValueTraits<FieldValue>::IsValue) {
-                            status = EncodeCborValue(
-                                sink,
-                                fieldValue.value(),
-                                diagnostic
-                            );
-                        } else {
-                            status = EncodeCborValue(
-                                sink,
-                                fieldValue,
-                                diagnostic
-                            );
-                        }
-                    }
-                    if (status != CborEncodingStatus::Succeeded) {
-                        if (!diagnostic.Type.has_value()) { diagnostic.Type = TValue::Identifier; }
-                        if (!diagnostic.Field.has_value()) { diagnostic.Field = Field::Identifier; }
-                        return status;
+                status = EncodeCborHead(
+                    sink, 0U,
+                    static_cast<std::uint64_t>(TField::Identifier.Value()),
+                    diagnostic
+                );
+                if (status == CborEncodingStatus::Succeeded) {
+                    if constexpr (OptionalValueTraits<FieldValue>::IsValue) {
+                        status = EncodeCborValue(
+                            sink, fieldValue.value(), diagnostic
+                        );
+                    } else {
+                        status = EncodeCborValue(
+                            sink, fieldValue, diagnostic
+                        );
                     }
                 }
+                if (status != CborEncodingStatus::Succeeded) {
+                    if (!diagnostic.Type.has_value()) {
+                        diagnostic.Type = TValue::Identifier;
+                    }
+                    if (!diagnostic.Field.has_value()) {
+                        diagnostic.Field = TField::Identifier;
+                    }
+                }
+            });
+            if (status != CborEncodingStatus::Succeeded) {
+                return status;
             }
-            return EncodeCborSchemaFields<TIdentifier + 1U>(
-                sink,
-                value,
-                diagnostic
-            );
+            nextLowerBound = static_cast<std::uint16_t>(selected + 1U);
         }
+        return CborEncodingStatus::Succeeded;
     }
 
     /// Encodes one schema object as a definite-length numeric-key CBOR map.
@@ -463,7 +484,7 @@ namespace ESPressio::Serialisation::Detail {
             diagnostic
         );
         if (status != CborEncodingStatus::Succeeded) { return status; }
-        return EncodeCborSchemaFields<0U>(
+        return EncodeCborSchemaFields(
             sink,
             value,
             diagnostic
