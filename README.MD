@@ -352,3 +352,7 @@ The resulting command remains `pio`, so the project folder names retain the poli
 ## Validation
 
 Host validation includes functional compile-time/runtime assertions plus compile-fail contracts. The README JSON Numeric round-trip source is mechanically compared with the portable example, the portable project is compiled and executed, and both PIOArduino example projects are included in the maintained embedded build matrix. The authoritative execution appliance for the current tranche is AI-AGENT-02; checked-in GitHub Actions remain reproducible workflow definitions rather than authoritative execution evidence.
+
+### G3 canonical System identity adapters (additional, version 0.1.0)
+
+`serialisation/SystemIdentityAdapters.hpp` supplies reversible EDP-System `Identity::DeviceIdentifier` as a 16-byte `Bounded::Bytes<16>` (canonical CBOR binary, JSON Base64) and `Identity::RuntimeIncarnationId` as an exact `uint32_t` (CBOR unsigned integer/JSON decimal). No native SDK/Clock/Mesh/Logging dependency is introduced. Invalid zero sentinels remain reversible but invalid at the System layer. See [contract](docs/SYSTEM-IDENTITY-ADAPTERS.MD) and [Wiki](wiki/Reference-SystemIdentityAdapters.md).

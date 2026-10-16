@@ -10,3 +10,4 @@
 #include "Results.hpp"
 #include "SerialisableType.hpp"
 #include "SystemIdentifierAdapters.hpp"
+#include "SystemIdentityAdapters.hpp"

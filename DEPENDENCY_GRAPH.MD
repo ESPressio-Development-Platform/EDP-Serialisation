@@ -67,3 +67,7 @@ Serialisation itself has no optional direct ESPressio dependency. `EDP-Localisat
 ## Dependency direction
 
 No dependency points from these foundational repositories back to Serialisation. The graph therefore remains acyclic. `EDP-BoundedTopology` is dependency-minimal and is intentionally reusable by Memory, Serialisation, and other higher domains.
+
+### Additional owner-certified System identity adapters (2026-10-16)
+
+`SystemIdentityAdapters.hpp` uses the ALREADY mandatory `EDP-System` and `EDP-BoundedTypes` owners; its canonical binary representation is `Bounded::Bytes<16>`, integer `uint32_t`. Existing bounded codecs are reused. **No new EDP-Clock/Mesh/Logging or platform concrete edge, and no version change**.

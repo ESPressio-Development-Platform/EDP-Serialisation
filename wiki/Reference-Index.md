@@ -23,3 +23,5 @@
 | `src/serialisation/SerialisableType.hpp` | PUBLIC CONCEPT API | [SerialisableType](Reference-SerialisableType) |
 | `src/serialisation/SystemIdentifierAdapters.hpp` | PUBLIC INTEGRATION API | [SystemIdentifierAdapters](Reference-SystemIdentifierAdapters) |
 | `src/serialisation/Serialisation.hpp` | PUBLIC INTERNAL UMBRELLA | [Serialisation umbrella](Reference-Serialisation-Umbrella) |
+
+- [System Identity canonical adapters](Reference-SystemIdentityAdapters)
