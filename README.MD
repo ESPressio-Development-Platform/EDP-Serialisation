@@ -24,6 +24,7 @@ The library is currently in its pre-1.0 implementation tranche at version `0.1.0
 - [JSON Typed Envelope](./docs/JSON-TYPED-ENVELOPE.MD) — defines the explicit root envelope, canonical TypeIdentifier text, version checking, and transactional envelope decode.
 - [JSON LocalisedText Fields](./docs/JSON-LOCALISED-TEXT.MD) — defines RFC5646 metadata, forward/reverse Localisation resolution, collision rules, caller scratch, language priority, and transactional decode.
 - [CBOR Numeric Profiles](./docs/CBOR-NUMERIC.MD) — defines deterministic Numeric CBOR for Known-Type Body and Typed Envelope roots, canonical heads, exact float widths, native text/byte strings, and transactional decode.
+- [Heterogeneous positional CBOR and JSON](./docs/POSITIONAL-VALUE-ENCODING.MD) — compile-time typed ordered arguments, exact two-pass measurement and nonmutating failed preflight (partial Logging G3 prerequisite).
 - [Dependency Graph](./DEPENDENCY_GRAPH.MD) — records direct ownership boundaries and current transitive dependency topology.
 
 ## Implemented API
@@ -47,6 +48,7 @@ Public foundation components:
 - `ParserLimits<>` / `DefaultParserLimits`;
 - operation-specific `MeasurementResult`, `SerialisationResult`, and `DeserialisationResult` families;
 - canonical adapters for `System::TypeIdentifier`, `FieldIdentifier`, `TypeAuthorityIdentifier`, and `TypeLocalIdentifier`;
+- `MeasurePositionalCbor/Json<MaxArgs>(const TValues&...)` and `SerialisePositionalCbor/Json<MaxArgs>(output,const TValues&...)` for deterministic heterogeneous compile-time argument packs as definite CBOR/JSON arrays; does not make tuples/variants serialisable.
 - `Measure<Json>(value)` / `Measure<Cbor>(value)` for exact canonical Numeric size/validation;
 - `Serialise<Json/Cbor>(value, std::span<std::byte> output)` for Numeric Known-Type Body encoding;
 - `Deserialise<Json/Cbor>(std::span<const std::byte> input, destination)` for transactional Numeric Known-Type Body decoding;

@@ -4,7 +4,7 @@ EDP-Serialisation owns deterministic representation rules and the recursive comp
 
 It deliberately does **not** own semantic Type/Field identity (`EDP-System`), bounded container storage or pairwise conversion (`EDP-BoundedTypes`), Localisation language-pack/fallback semantics (`EDP-Localisation`), Transport, Persistence, Security, Threading, or application object lifetime. Numeric JSON/CBOR, JSON LocalisedText, and both Typed Envelope representations are implemented. Typed Envelope does not provide runtime Type construction or codec autodetection.
 
-The consumer entry point is `src/ESPressio_Serialisation.hpp`.
+The consumer entry point is `src/ESPressio_Serialisation.hpp`. The additive `feature/logging-v1` branch also provides [heterogeneous positional CBOR/JSON](Reference-PositionalValueEncoding) measurement and exact preflight writes for compile-time argument packs; this does not admit tuple/variant roots or implement an EDP-Logging LogRecord.
 
 Direct production dependencies are `EDP-System`, `EDP-BoundedTypes`, `EDP-BoundedTopology`, `EDP-Memory`, `EDP-Platform-Portable`, and `EDP-Localisation`; the Memory/Portable edges are direct because JSON and CBOR caller-buffer output share the ByteOperations contract/default provider.
 

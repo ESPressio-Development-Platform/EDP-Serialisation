@@ -47,6 +47,10 @@ EDP-Serialisation
         └── EDP-System [mandatory when imposed]
 ```
 
+### G3 additive positional-CBOR owner facility (2026-10-16)
+
+`PositionalValueEncoding.hpp` uses exclusively the pre-existing EDP-Serialisation `EncodeCborValue`, `EncodingCountingSink`/`EncodingBufferSink` and selected EDP-Memory/EDP-Platform-Portable ByteOperations infrastructure. There are **no new direct or conditional dependency edges**, no Logging import and no changed transitive path. Future EDP-Logging adaptation will depend on Serialisation, never vice versa.
+
 ## Direct dependency ownership
 
 - `EDP-System` — canonical semantic Type/Field identity and schema traversal (`TypeIdentifier`, `FieldIdentifier`, `FieldBinding`, `FieldSet`, `SchemaType`, `ForEachField`).

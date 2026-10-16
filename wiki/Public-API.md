@@ -37,6 +37,8 @@ The supported surface includes the compile-time foundation, JSON and CBOR Numeri
 
 The caller owns source/output/input/destination storage. The source and forward canonical adapters must remain observationally stable during encoding. The immutable input and reverse adapters must remain deterministic during deserialisation replay.
 
+- `MeasurePositionalCbor/Json<MaxArgs>(values...)` and `SerialisePositionalCbor/Json<MaxArgs>(output, values...)` encode a heterogeneously typed **ordered pack** of existing `SerialisableType` values into a canonical definite CBOR/JSON array using the pre-existing scalar writer. This is an additive low-level owner operation, not a schema-root Typed Envelope. [Positional CBOR/JSON Reference](Reference-PositionalValueEncoding).
+
 ## Decoding operation
 
 - `Deserialise<Json/Cbor, KnownTypeBody, Numeric, Strictness, ParserLimits>(...)` performs complete validate-only pass one, rejects trailing representation data, then replays the same immutable bytes to populate. `StrictnessPolicy::Exact` rejects unknown schema Fields; `IgnoreUnknownFields` structurally validates/skips them within the compile-time parser limits.

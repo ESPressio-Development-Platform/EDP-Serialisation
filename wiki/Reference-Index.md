@@ -14,6 +14,7 @@
 | `src/serialisation/JsonLocalisedText.hpp` | PRIVATE IMPLEMENTATION | [JSON LocalisedText](Reference-JsonLocalisedText) |
 | `src/serialisation/JsonDecoding.hpp` | PRIVATE IMPLEMENTATION | [JSON Decoding](Reference-JsonDecoding) |
 | `src/serialisation/Optional.hpp` | PUBLIC TYPE ALIAS | [Optional](Reference-Optional) |
+| `src/serialisation/PositionalValueEncoding.hpp` | PUBLIC OPERATION API / PRIVATE HELPERS | [Positional CBOR](Reference-PositionalValueEncoding) |
 | `src/serialisation/Operations.hpp` | PUBLIC OPERATION API / PRIVATE HELPERS | [Operations](Reference-Operations) |
 | `src/serialisation/ParserLimits.hpp` | PUBLIC POLICY API | [ParserLimits](Reference-ParserLimits) |
 | `src/serialisation/Profiles.hpp` | PUBLIC PROFILE API | [Profiles](Reference-Profiles) |

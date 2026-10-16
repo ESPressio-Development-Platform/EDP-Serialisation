@@ -12,6 +12,7 @@
 - [Compiler Definitions](Compiler-Definitions)
 - [Tooling Reference](Tooling-Reference)
 - [Reference Index](Reference-Index)
+- [Heterogeneous CBOR Positional Encoding](Reference-PositionalValueEncoding)
 
 - [JSON LocalisedText Reference](Reference-JsonLocalisedText)
 

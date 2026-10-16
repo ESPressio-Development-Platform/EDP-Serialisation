@@ -48,6 +48,10 @@ ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=0:abort_on_error=1}" \
 UBSAN_OPTIONS="${UBSAN_OPTIONS:-halt_on_error=1:print_stacktrace=1}" \
     "${BUILD_DIR}/host-tests"
 
+"${CXX}" "${COMMON_FLAGS[@]}" "${EXTRA_FLAGS[@]}" "${ROOT_DIR}/tests/host/positional_encoding.cpp" -o "${BUILD_DIR}/positional-encoding-tests"
+"${BUILD_DIR}/positional-encoding-tests"
+echo "EDP-Serialisation heterogeneous positional CBOR tests passed."
+
 for source in "${ROOT_DIR}"/tests/compile_fail/*.cpp; do
     name="$(basename "${source}" .cpp)"
     if "${CXX}" "${COMMON_FLAGS[@]}" "${source}" -o "${BUILD_DIR}/${name}" >"${BUILD_DIR}/${name}.log" 2>&1; then

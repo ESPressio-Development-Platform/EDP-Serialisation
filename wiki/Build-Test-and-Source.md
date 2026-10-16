@@ -21,6 +21,8 @@ Supported test-runner controls:
 
 `tests/CMakeLists.txt` supplies a second host-build surface using the same dependency roots.
 
+The additive `tests/host/positional_encoding.cpp` is executed by the same host runner; it asserts exact heterogeneous uint64/f32/f64 golden bytes, empty-arity, preflight output stability and nonfinite rejection. The `tests/compile_fail/positional_argument_limit.cpp` fixture proves compile-time argument bounds are enforced. A future Logging adapter must independently provide governed LogRecord root/schema identities and JSON parameter support.
+
 ## Compile-fail contracts
 
 Current negative contracts prove:

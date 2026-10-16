@@ -4,6 +4,7 @@
 #include "EnumSerialisationTraits.hpp"
 #include "Optional.hpp"
 #include "Operations.hpp"
+#include "PositionalValueEncoding.hpp"
 #include "ParserLimits.hpp"
 #include "Profiles.hpp"
 #include "Results.hpp"
