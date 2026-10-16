@@ -25,3 +25,5 @@
 | `src/serialisation/Serialisation.hpp` | PUBLIC INTERNAL UMBRELLA | [Serialisation umbrella](Reference-Serialisation-Umbrella) |
 
 - [System Identity canonical adapters](Reference-SystemIdentityAdapters)
+
+- [Optional ClockEra canonical adapter](Reference-ClockEraAdapters)

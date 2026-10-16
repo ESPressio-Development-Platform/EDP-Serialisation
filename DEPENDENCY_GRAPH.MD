@@ -62,7 +62,7 @@ EDP-Serialisation
 
 ## Optional/transitive dependency conditions
 
-Serialisation itself has no optional direct ESPressio dependency. `EDP-Localisation` exposes an optional `EDP-Persistence` edge only when a consuming application includes/instantiates Localisation `FilePackSource`; Serialisation does not instantiate that source itself. When imposed, `EDP-Persistence` depends on `EDP-System`.
+The default Serialisation umbrella has no optional direct ESPressio dependency; explicit import of serialisation/ClockEraAdapters.hpp activates EDP-Clock as an optional direct source dependency. `EDP-Localisation` exposes an optional `EDP-Persistence` edge only when a consuming application includes/instantiates Localisation `FilePackSource`; Serialisation does not instantiate that source itself. When imposed, `EDP-Persistence` depends on `EDP-System`.
 
 ## Dependency direction
 
@@ -71,3 +71,7 @@ No dependency points from these foundational repositories back to Serialisation.
 ### Additional owner-certified System identity adapters (2026-10-16)
 
 `SystemIdentityAdapters.hpp` uses the ALREADY mandatory `EDP-System` and `EDP-BoundedTypes` owners; its canonical binary representation is `Bounded::Bytes<16>`, integer `uint32_t`. Existing bounded codecs are reused. **No new EDP-Clock/Mesh/Logging or platform concrete edge, and no version change**.
+
+### Optional G3 ClockEra strong-adapter dependency
+
+Only a consumer importing `<serialisation/ClockEraAdapters.hpp>` activates **EDP-Serialisation -> EDP-Clock [optional]**. The EDP-Clock owner depends on EDP-System and EDP-Platform, which are already foundations; it does not depend on EDP-Serialisation. **This is acyclic**. The default `ESPressio_Serialisation.hpp` remains Clock-free and mandatory `library.json` dependencies remain unchanged. Application Bootstrap must declare EDP-Clock explicitly when selecting this optional source header. The adapter never imports EDP-Mesh or any platform concrete.

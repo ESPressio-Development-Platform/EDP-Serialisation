@@ -356,3 +356,7 @@ Host validation includes functional compile-time/runtime assertions plus compile
 ### G3 canonical System identity adapters (additional, version 0.1.0)
 
 `serialisation/SystemIdentityAdapters.hpp` supplies reversible EDP-System `Identity::DeviceIdentifier` as a 16-byte `Bounded::Bytes<16>` (canonical CBOR binary, JSON Base64) and `Identity::RuntimeIncarnationId` as an exact `uint32_t` (CBOR unsigned integer/JSON decimal). No native SDK/Clock/Mesh/Logging dependency is introduced. Invalid zero sentinels remain reversible but invalid at the System layer. See [contract](docs/SYSTEM-IDENTITY-ADAPTERS.MD) and [Wiki](wiki/Reference-SystemIdentityAdapters.md).
+
+### Optional G3 canonical ClockEra adapter
+
+Explicit import of `<serialisation/ClockEraAdapters.hpp>` provides the existing EDP-Clock `ClockEra` as a lossless canonical `uint64_t` CBOR/JSON value, with reverse conversion. **Condition:** this import imposes a direct optional EDP-Clock dependency in the *consuming application*; the default Serialisation umbrella and mandatory graph remain unchanged. Clock/Mesh own authority and coherent capture; this adapter never mints or validates provenance. See [adapter contract](docs/CLOCK-ERA-ADAPTERS.MD), [Wiki](wiki/Reference-ClockEraAdapters.md) and `tests/run-clock-era-adapters-tests.sh`.

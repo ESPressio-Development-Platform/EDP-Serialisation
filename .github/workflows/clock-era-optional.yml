@@ -1,0 +1,57 @@
+name: Optional ClockEra Canonical Adapter
+on:
+  push:
+    branches: [main, feature/logging-v1]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  clock-era:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [g++, clang++]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: EDP-Serialisation
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/EDP-Clock
+          ref: mesh_v1
+          path: deps/EDP-Clock
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/EDP-System
+          path: deps/EDP-System
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/EDP-Platform
+          path: deps/EDP-Platform
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/EDP-BoundedTypes
+          path: deps/EDP-BoundedTypes
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/EDP-BoundedTopology
+          path: deps/EDP-BoundedTopology
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/EDP-Memory
+          path: deps/EDP-Memory
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/EDP-Platform-Portable
+          path: deps/EDP-Platform-Portable
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/EDP-Localisation
+          ref: feature/logging-v1
+          path: deps/EDP-Localisation
+      - name: Verify ClockEra reversible value and canonical CBOR JSON
+        env:
+          CXX: ${{ matrix.compiler }}
+          EDP_SERIALISATION_DEPENDENCY_ROOT: ${{ github.workspace }}/deps
+          EDP_CLOCK_SOURCE_DIR: ${{ github.workspace }}/deps/EDP-Clock
+        run: bash EDP-Serialisation/tests/run-clock-era-adapters-tests.sh
