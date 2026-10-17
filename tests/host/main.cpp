@@ -47,9 +47,9 @@ namespace TestSupport {
 
         // Schema metadata.
 
-        /// Stable semantic Type identity owned by the test schema.
+        /// Unregistered test-only schema identity, distinct from the issued LogRecord root.
         inline static constexpr ESPressio::System::TypeIdentifier Identifier{
-            ESPressio::System::TypeIdentifier::Storage{0x00U, 0x00U, 0x01U, 0x00U, 0x00U, 0x00U, 0x00U, 0x01U}
+            ESPressio::System::TypeIdentifier::Storage{0x00U, 0x00U, 0x01U, 0xFEU, 0x00U, 0x02U, 0x00U, 0x01U}
         };
 
         /// Canonical FieldSet binding the numeric payload to FieldIdentifier 9.
