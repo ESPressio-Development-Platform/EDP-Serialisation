@@ -16,3 +16,18 @@ A specialization exposes nested alias `UnderlyingType`. `SerialisableType` requi
 The trait owns no runtime state and does not define enum-name/string representation.
 
 **Validation:** the positive host fixture certifies `Mode : std::uint8_t`; `tests/compile_fail/uncertified_enum.cpp` proves an enum without the specialization is rejected.
+
+
+## Unregistered and mismatched enum traits
+
+For an enum with no `EnumSerialisationTraits<T>` specialization,
+`SerialisableType<T>` must be a well-formed, compile-time `false`,
+including when nested in a supported Optional. When traits exist,
+the declared fixed-width underlying type must exactly match the
+actual C++ enum underlying type. A mismatched declaration is also
+`false`, not a hard template-instantiation error.
+
+The implementation's `if constexpr` branches guard trait member
+access in their final `else` branch. This corrects compile-time
+classification only and does not change canonical bytes.
+

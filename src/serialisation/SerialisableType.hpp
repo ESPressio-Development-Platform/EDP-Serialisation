@@ -126,15 +126,15 @@ namespace ESPressio::Serialisation {
         /// @return true only when the declared and actual underlying Types match a V1 integer Type.
         template<class TValue>
         consteval bool IsCertifiedEnum() {
-            if constexpr (!std::is_enum_v<TValue>) { return false; }
-            if constexpr (!HasEnumSerialisationTraits<TValue>) { return false; }
-
-            using Declared = typename EnumSerialisationTraits<TValue>::UnderlyingType;
-            using Actual = std::underlying_type_t<TValue>;
-
-            return
-                std::is_same_v<Declared, Actual> &&
-                IsFixedWidthInteger<Declared>;
+            if constexpr (!std::is_enum_v<TValue>) {
+                return false;
+            } else if constexpr (!HasEnumSerialisationTraits<TValue>) {
+                return false;
+            } else {
+                using Declared = typename EnumSerialisationTraits<TValue>::UnderlyingType;
+                using Actual = std::underlying_type_t<TValue>;
+                return std::is_same_v<Declared, Actual> && IsFixedWidthInteger<Declared>;
+            }
         }
 
         /// Validates one direct strong-Type adaptation without permitting a second adaptation hop.

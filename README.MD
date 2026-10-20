@@ -360,3 +360,17 @@ Host validation includes functional compile-time/runtime assertions plus compile
 ### Optional G3 canonical ClockEra adapter
 
 Explicit import of `<serialisation/ClockEraAdapters.hpp>` provides the existing EDP-Clock `ClockEra` as a lossless canonical `uint64_t` CBOR/JSON value, with reverse conversion. **Condition:** this import imposes a direct optional EDP-Clock dependency in the *consuming application*; the default Serialisation umbrella and mandatory graph remain unchanged. Clock/Mesh own authority and coherent capture; this adapter never mints or validates provenance. See [adapter contract](docs/CLOCK-ERA-ADAPTERS.MD), [Wiki](wiki/Reference-ClockEraAdapters.md) and `tests/run-clock-era-adapters-tests.sh`.
+
+
+## Uncertified enum qualification (2026-10-20)
+
+The C++20 `SerialisableType<T>` concept now safely evaluates to
+`false` for unregistered enum types, including when nested in
+`std::optional<T>`, instead of instantiating an incomplete
+`EnumSerialisationTraits<T>`. An explicitly certified enum whose
+declared underlying type disagrees with its actual underlying type
+is also rejected. Correctly registered fixed-width enums remain
+serialisable. This fixes compile-time contract probing; **no wire
+encoding, field identity, runtime policy or package version changes**.
+Host regression assertions live in `tests/host/main.cpp`.
+

@@ -22,6 +22,11 @@ namespace TestSupport {
         Automatic = 1U
     };
 
+    // Unregistered enums must be classifiable without instantiating an
+    // incomplete EnumSerialisationTraits specialization.
+    enum class UncertifiedMode : std::uint8_t { Unknown = 0U };
+    enum class MismatchedMode : std::uint8_t { Unknown = 0U };
+
     /// Result family for the test-owned strong counter conversion adapters.
     enum class StrongCounterConversionResult : std::uint8_t {
         /// Conversion completed successfully.
@@ -550,6 +555,12 @@ namespace ESPressio::Serialisation {
 
     };
 
+    // An explicit but incorrect underlying-width declaration is not certified.
+    template<>
+    struct EnumSerialisationTraits<TestSupport::MismatchedMode> final {
+        using UnderlyingType = std::uint16_t;
+    };
+
     /// Declares the direct canonical surrogate of the test strong counter Type.
     template<>
     struct CanonicalRepresentation<TestSupport::StrongCounter> final {
@@ -902,6 +913,9 @@ int main() {
     static_assert(SerialisableType<double>);
     static_assert(!SerialisableType<long double>);
     static_assert(SerialisableType<TestSupport::Mode>);
+    static_assert(!SerialisableType<TestSupport::UncertifiedMode>);
+    static_assert(!SerialisableType<TestSupport::MismatchedMode>);
+    static_assert(!SerialisableType<std::optional<TestSupport::UncertifiedMode>>);
     static_assert(SerialisableType<ESPressio::Bounded::String<32U>>);
     static_assert(SerialisableType<ESPressio::Bounded::Bytes<32U>>);
     static_assert(SerialisableType<ESPressio::Bounded::Vector<std::uint16_t, 8U>>);

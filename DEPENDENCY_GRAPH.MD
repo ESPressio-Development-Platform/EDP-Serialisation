@@ -75,3 +75,13 @@ No dependency points from these foundational repositories back to Serialisation.
 ### Optional G3 ClockEra strong-adapter dependency
 
 Only a consumer importing `<serialisation/ClockEraAdapters.hpp>` activates **EDP-Serialisation -> EDP-Clock [optional]**. The EDP-Clock owner depends on EDP-System and EDP-Platform, which are already foundations; it does not depend on EDP-Serialisation. **This is acyclic**. The default `ESPressio_Serialisation.hpp` remains Clock-free and mandatory `library.json` dependencies remain unchanged. Application Bootstrap must declare EDP-Clock explicitly when selecting this optional source header. The adapter never imports EDP-Mesh or any platform concrete.
+
+
+## Enum concept qualification correction (2026-10-20)
+
+Guarding accesses to optional `EnumSerialisationTraits<T>` inside
+`IsCertifiedEnum<T>` affects only compile-time classification.
+No extra dependencies, runtime adapters, providers, or cycles
+have been introduced. Logging's optional schema audit consumes
+this contract but is not a new EDP-Serialisation dependency.
+
