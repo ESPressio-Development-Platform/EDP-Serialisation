@@ -13,7 +13,7 @@ The library is currently in its pre-1.0 implementation tranche at version `0.1.0
 - Strong semantic adaptation names one direct canonical representation through `CanonicalRepresentation<T>` and requires noexcept, success-aware conversion adapters in both directions.
 - Enums require explicit `EnumSerialisationTraits<TEnum>` certification of their fixed-width underlying Type.
 - Nested schema fields are qualified recursively through the existing System FieldSet traversal contract.
-- Dynamic STL owners, pointers, views, long double, maps/sets, tuples and variants remain outside the V1 serialisable universe unless separately designed.
+- Dynamic STL owners, pointers, views, long double, maps/sets and variants remain outside the V1 serialisable universe. Fixed heterogeneous `std::tuple<T...>` is now separately qualified when each element is an owner-certified `SerialisableType`; see the tuple schema-field contract.
 
 ## Documentation
 
@@ -25,6 +25,7 @@ The library is currently in its pre-1.0 implementation tranche at version `0.1.0
 - [JSON LocalisedText Fields](./docs/JSON-LOCALISED-TEXT.MD) — defines RFC5646 metadata, forward/reverse Localisation resolution, collision rules, caller scratch, language priority, and transactional decode.
 - [CBOR Numeric Profiles](./docs/CBOR-NUMERIC.MD) — defines deterministic Numeric CBOR for Known-Type Body and Typed Envelope roots, canonical heads, exact float widths, native text/byte strings, and transactional decode.
 - [Heterogeneous positional CBOR and JSON](./docs/POSITIONAL-VALUE-ENCODING.MD) — compile-time typed ordered arguments, exact two-pass measurement and nonmutating failed preflight (partial Logging G3 prerequisite).
+- [Tuple Schema Fields](./docs/TUPLE-SCHEMA-FIELDS.MD) — fixed heterogeneous `std::tuple` as an owner-qualified nested EDP-System Field, canonical CBOR/JSON and strict transactional decode.
 - [Dependency Graph](./DEPENDENCY_GRAPH.MD) — records direct ownership boundaries and current transitive dependency topology.
 
 ## Implemented API
@@ -48,7 +49,7 @@ Public foundation components:
 - `ParserLimits<>` / `DefaultParserLimits`;
 - operation-specific `MeasurementResult`, `SerialisationResult`, and `DeserialisationResult` families;
 - canonical adapters for `System::TypeIdentifier`, `FieldIdentifier`, `TypeAuthorityIdentifier`, and `TypeLocalIdentifier`;
-- `MeasurePositionalCbor/Json<MaxArgs>(const TValues&...)` and `SerialisePositionalCbor/Json<MaxArgs>(output,const TValues&...)` for deterministic heterogeneous compile-time argument packs as definite CBOR/JSON arrays; does not make tuples/variants serialisable.
+- `MeasurePositionalCbor/Json<MaxArgs>(const TValues&...)` and `SerialisePositionalCbor/Json<MaxArgs>(output,const TValues&...)` for deterministic heterogeneous compile-time argument packs as definite CBOR/JSON arrays; fixed `std::tuple<T...>` is now separately qualified as a nested owner Schema Field, while runtime variants remain unsupported.
 - `Measure<Json>(value)` / `Measure<Cbor>(value)` for exact canonical Numeric size/validation;
 - `Serialise<Json/Cbor>(value, std::span<std::byte> output)` for Numeric Known-Type Body encoding;
 - `Deserialise<Json/Cbor>(std::span<const std::byte> input, destination)` for transactional Numeric Known-Type Body decoding;
@@ -360,17 +361,3 @@ Host validation includes functional compile-time/runtime assertions plus compile
 ### Optional G3 canonical ClockEra adapter
 
 Explicit import of `<serialisation/ClockEraAdapters.hpp>` provides the existing EDP-Clock `ClockEra` as a lossless canonical `uint64_t` CBOR/JSON value, with reverse conversion. **Condition:** this import imposes a direct optional EDP-Clock dependency in the *consuming application*; the default Serialisation umbrella and mandatory graph remain unchanged. Clock/Mesh own authority and coherent capture; this adapter never mints or validates provenance. See [adapter contract](docs/CLOCK-ERA-ADAPTERS.MD), [Wiki](wiki/Reference-ClockEraAdapters.md) and `tests/run-clock-era-adapters-tests.sh`.
-
-
-## Uncertified enum qualification (2026-10-20)
-
-The C++20 `SerialisableType<T>` concept now safely evaluates to
-`false` for unregistered enum types, including when nested in
-`std::optional<T>`, instead of instantiating an incomplete
-`EnumSerialisationTraits<T>`. An explicitly certified enum whose
-declared underlying type disagrees with its actual underlying type
-is also rejected. Correctly registered fixed-width enums remain
-serialisable. This fixes compile-time contract probing; **no wire
-encoding, field identity, runtime policy or package version changes**.
-Host regression assertions live in `tests/host/main.cpp`.
-

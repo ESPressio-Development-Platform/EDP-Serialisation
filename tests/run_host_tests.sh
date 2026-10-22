@@ -52,6 +52,12 @@ UBSAN_OPTIONS="${UBSAN_OPTIONS:-halt_on_error=1:print_stacktrace=1}" \
 "${BUILD_DIR}/positional-encoding-tests"
 echo "EDP-Serialisation heterogeneous positional CBOR tests passed."
 
+# Exact generated-style heterogeneous tuple as a nested System Schema Field
+# uses the same owner scalar codecs and preserves typed-envelope semantics.
+"${CXX}" "${COMMON_FLAGS[@]}" "${EXTRA_FLAGS[@]}" "${ROOT_DIR}/tests/host/tuple_schema_fields.cpp" -o "${BUILD_DIR}/tuple-schema-tests"
+"${BUILD_DIR}/tuple-schema-tests"
+echo "EDP-Serialisation nested heterogeneous Schema Field CBOR/JSON tests passed."
+
 "${CXX}" "${COMMON_FLAGS[@]}" "${EXTRA_FLAGS[@]}" "${ROOT_DIR}/tests/host/system_identity_adapters.cpp" -o "${BUILD_DIR}/system-identity-tests"
 "${BUILD_DIR}/system-identity-tests"
 echo "EDP-Serialisation strong Device/Incarnation owner adapters passed."

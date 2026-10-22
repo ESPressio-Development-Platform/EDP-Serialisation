@@ -32,3 +32,21 @@ target_include_directories(EDP_Serialisation_HostTests PRIVATE
     ${EDP_LOCALISATION_SOURCE_DIR}/tests/generated
 )
 target_compile_options(EDP_Serialisation_HostTests PRIVATE -Wall -Wextra -Wpedantic -Werror)
+
+
+# Exact nested heterogeneous positional Field qualification. The SchemaType
+# owner and all codec implementations are reused; no private wire tags.
+add_executable(EDP_Serialisation_TupleSchemaTests host/tuple_schema_fields.cpp)
+target_include_directories(EDP_Serialisation_TupleSchemaTests PRIVATE
+    ../src
+    ${EDP_SYSTEM_SOURCE_DIR}/src
+    ${EDP_BOUNDED_TYPES_SOURCE_DIR}/src
+    ${EDP_PLATFORM_SOURCE_DIR}/src
+    ${EDP_MEMORY_SOURCE_DIR}/src
+    ${EDP_BOUNDED_TOPOLOGY_SOURCE_DIR}/src
+    ${EDP_PLATFORM_PORTABLE_SOURCE_DIR}/src
+    ${EDP_LOCALISATION_SOURCE_DIR}/src
+    ${EDP_LOCALISATION_SOURCE_DIR}/tests/generated
+)
+target_compile_options(EDP_Serialisation_TupleSchemaTests PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)

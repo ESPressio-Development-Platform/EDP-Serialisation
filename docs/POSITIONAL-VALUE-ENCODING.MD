@@ -12,7 +12,7 @@ EDP-Serialisation itself now exposes the additive `serialisation/PositionalValue
 - `SerialisePositionalCbor<TMaximumArguments, TByteOperationsProvider>(std::span<std::byte> output, const TValues&... values)`: uses the existing owner `EncodingCountingSink` + `EncodingBufferSink` two-pass representation, then returns the existing typed `SerialisationResult` statuses and sizes. On invalid source or insufficient capacity **no output bytes change**.
 - The internal `Detail::EncodePositionalCborValues` emits a canonical **definite array header** followed left-to-right by the **existing** `Detail::EncodeCborValue` for each argument. No duplicate CBOR number/string/float encoder and no unbounded buffer, heap/variant, runtime registry or new circular dependency.
 
-The caller statically declares `TMaximumArguments`. A zero-argument diagnostic emits canonical `0x80`. Heterogeneous Types are compile-time arguments only; this addition **does NOT** make `std::tuple` a supported `SerialisableType` root or relax the V1 supported type universe. The source values must remain stable through the two passes, as in existing Serialise.
+The caller statically declares `TMaximumArguments`. A zero-argument diagnostic emits canonical `0x80`. Heterogeneous Types are compile-time arguments only. A subsequent, separately qualified additive [Tuple Schema Fields](./TUPLE-SCHEMA-FIELDS.MD) implementation now also accepts fixed heterogeneous `std::tuple<T...>` as a nested Schema Field, with byte-identical ordered-array encodings; this does not enable arbitrary dynamic containers or variants. The source values must remain stable through both passes, as in existing Serialise.
 
 ## Limitations / next work
 

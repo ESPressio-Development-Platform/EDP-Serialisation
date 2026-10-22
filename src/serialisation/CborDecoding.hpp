@@ -1249,6 +1249,25 @@ namespace ESPressio::Serialisation::Detail {
                 skipState,
                 diagnostic
             );
+        } else if constexpr (StandardTupleTraits<Value>::IsValue) {
+            const auto start = cursor.Position();
+            CborHead head{};
+            auto status = ReadCborHead(cursor,head,diagnostic);
+            if(status != CborDecodingStatus::Succeeded) return status;
+            if(head.MajorType != 4U || head.Argument != StandardTupleTraits<Value>::Count) {
+                diagnostic.ByteOffset=start;
+                return CborDecodingStatus::TypeMismatch;
+            }
+            status=EnterCborContainer<TParserLimits>(depth,start,diagnostic);
+            if(status != CborDecodingStatus::Succeeded) return status;
+            [&]<std::size_t... I>(std::index_sequence<I...>) noexcept {
+                ((status == CborDecodingStatus::Succeeded
+                  ? status=DecodeCborValue<TPopulate,TStrictness,TParserLimits>(
+                        cursor, destination==nullptr ? nullptr : &std::get<I>(*destination),
+                        depth+1U,skipState,diagnostic)
+                  : status),...);
+            }(std::make_index_sequence<StandardTupleTraits<Value>::Count>{});
+            return status;
         } else if constexpr (StandardArrayTraits<Value>::IsValue) {
             return DecodeCborFixedArray<TPopulate, TStrictness, TParserLimits>(
                 cursor,

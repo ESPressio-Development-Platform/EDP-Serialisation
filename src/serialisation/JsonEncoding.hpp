@@ -1126,6 +1126,25 @@ namespace ESPressio::Serialisation::Detail {
                 value.value(),
                 diagnostic
             );
+        } else if constexpr (StandardTupleTraits<Value>::IsValue) {
+            // Nested positional array in a Schema Field: use the owner
+            // scalar/strong writers with exact heterogeneous tuple order.
+            auto status = WriteJsonByte(sink,static_cast<std::uint8_t>('['),diagnostic);
+            if(status != JsonEncodingStatus::Succeeded) return status;
+            bool first = true;
+            std::apply([&](const auto&... item) noexcept {
+                (([&]() noexcept {
+                    if(status != JsonEncodingStatus::Succeeded) return;
+                    if(!first) status=WriteJsonByte(
+                        sink,static_cast<std::uint8_t>(','),diagnostic);
+                    if(status != JsonEncodingStatus::Succeeded) return;
+                    first=false;
+                    status=EncodeJsonValueWithFieldPolicy(
+                        fieldPolicy,sink,item,diagnostic);
+                }()),...);
+            },value);
+            if(status != JsonEncodingStatus::Succeeded) return status;
+            return WriteJsonByte(sink,static_cast<std::uint8_t>(']'),diagnostic);
         } else if constexpr (StandardArrayTraits<Value>::IsValue) {
             return EncodeJsonArray(
                 fieldPolicy,

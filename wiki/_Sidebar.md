@@ -13,6 +13,7 @@
 - [Tooling Reference](Tooling-Reference)
 - [Reference Index](Reference-Index)
 - [Heterogeneous CBOR Positional Encoding](Reference-PositionalValueEncoding)
+- [Fixed Tuple Schema Fields](Reference-TupleSchemaFields)
 
 - [JSON LocalisedText Reference](Reference-JsonLocalisedText)
 

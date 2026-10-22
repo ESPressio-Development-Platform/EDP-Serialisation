@@ -121,4 +121,4 @@ This ordered dispatch avoids probing System schema machinery for unrelated scala
 
 ## Validation relationships
 
-Host coverage proves positive scalar, enum, bounded container, fixed-array, Optional, nested schema, adapted strong Type, schema-with-adapted-Field, and System identifier cases. Negative assertions cover dynamic STL owners, pointers, `long double`, unsupported schema Fields and nested Optional. Compile-fail fixtures separately prove uncertified enums, incomplete adaptations, nested Optional, and non-default-constructible canonical surrogates are rejected.
+Host coverage proves positive scalar, enum, bounded container, fixed-array, Optional, fixed heterogeneous Tuple Schema Fields, nested schema, adapted strong Type, schema-with-adapted-Field, and System identifier cases. Negative assertions cover dynamic STL owners, pointers, `long double`, unsupported schema Fields and nested Optional. Compile-fail fixtures separately prove uncertified enums, incomplete adaptations, nested Optional, and non-default-constructible canonical surrogates are rejected.

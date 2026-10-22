@@ -2493,6 +2493,44 @@ namespace ESPressio::Serialisation::Detail {
                 skipState,
                 diagnostic
             );
+        } else if constexpr (StandardTupleTraits<Value>::IsValue) {
+            const auto start=cursor.Position();
+            auto status=EnterJsonContainer<TParserLimits>(depth,diagnostic,start);
+            if(status!=JsonDecodingStatus::Succeeded) return status;
+            if(cursor.IsAtEnd() || cursor.Current()!=static_cast<std::uint8_t>('[')) {
+                diagnostic.ByteOffset=start;
+                return JsonDecodingStatus::TypeMismatch;
+            }
+            cursor.Advance();
+            SkipJsonWhitespace(cursor);
+            std::size_t index=0U;
+            [&]<std::size_t... I>(std::index_sequence<I...>) noexcept {
+                (([&]() noexcept {
+                    if(status!=JsonDecodingStatus::Succeeded) return;
+                    if(cursor.IsAtEnd() || cursor.Current()==static_cast<std::uint8_t>(']')) {
+                        diagnostic.ByteOffset=cursor.Position();
+                        status=JsonDecodingStatus::TypeMismatch;
+                        return;
+                    }
+                    if(index++!=0U) {
+                        status=ConsumeJsonByte(cursor,static_cast<std::uint8_t>(','),diagnostic);
+                        if(status!=JsonDecodingStatus::Succeeded) return;
+                        SkipJsonWhitespace(cursor);
+                    }
+                    status=DecodeJsonValueWithFieldPolicy<TPopulate,TStrictness,TParserLimits>(
+                        fieldPolicy,cursor,
+                        destination==nullptr ? nullptr : &std::get<I>(*destination),
+                        depth+1U,skipState,diagnostic);
+                    if(status==JsonDecodingStatus::Succeeded) SkipJsonWhitespace(cursor);
+                }()),...);
+            }(std::make_index_sequence<StandardTupleTraits<Value>::Count>{});
+            if(status!=JsonDecodingStatus::Succeeded) return status;
+            if(cursor.IsAtEnd() || cursor.Current()!=static_cast<std::uint8_t>(']')) {
+                diagnostic.ByteOffset=cursor.Position();
+                return JsonDecodingStatus::TypeMismatch;
+            }
+            cursor.Advance();
+            return JsonDecodingStatus::Succeeded;
         } else if constexpr (StandardArrayTraits<Value>::IsValue) {
             return DecodeJsonFixedArray<TPopulate, TStrictness, TParserLimits>(
                 fieldPolicy,

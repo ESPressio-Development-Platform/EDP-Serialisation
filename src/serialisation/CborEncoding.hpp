@@ -549,6 +549,18 @@ namespace ESPressio::Serialisation::Detail {
                 value.value(),
                 diagnostic
             );
+        } else if constexpr (StandardTupleTraits<Value>::IsValue) {
+            // Reuse the same owner value encoder for each heterogeneous
+            // generated position, with a definite CBOR array of static arity.
+            auto status = EncodeCborHead(
+                sink,4U,StandardTupleTraits<Value>::Count,diagnostic);
+            if(status != CborEncodingStatus::Succeeded) return status;
+            std::apply([&](const auto&... item) noexcept {
+                ((status == CborEncodingStatus::Succeeded
+                    ? status = EncodeCborValue(sink,item,diagnostic)
+                    : status), ...);
+            },value);
+            return status;
         } else if constexpr (StandardArrayTraits<Value>::IsValue) {
             return EncodeCborArray(
                 sink,

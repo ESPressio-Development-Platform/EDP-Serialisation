@@ -7,6 +7,7 @@
 #include <limits>
 #include <optional>
 #include <type_traits>
+#include <tuple>
 
 #include <ESPressio_BoundedTypes.hpp>
 #include <ESPressio_System.hpp>
@@ -238,6 +239,26 @@ namespace ESPressio::Serialisation {
             /// Complete V1 serialisability qualification for every array element.
             static constexpr bool Value = SerialisableTypeTrait<NormalizedType<TValue>>::Value;
 
+        };
+
+        // Existing heterogeneous positional arrays may also be represented
+        // inside a governed schema Field using a fixed compiler-typed tuple.
+        // There are no variant tags, heap allocations, or runtime arity.
+        template<class... TElements>
+        struct SerialisableTypeTrait<std::tuple<TElements...>> final {
+            static constexpr bool Value =
+                (SerialisableTypeTrait<NormalizedType<TElements>>::Value && ...) &&
+                (std::is_nothrow_default_constructible_v<NormalizedType<TElements>> && ...);
+        };
+
+        template<class TValue>
+        struct StandardTupleTraits final {
+            static constexpr bool IsValue = false;
+        };
+        template<class... TElements>
+        struct StandardTupleTraits<std::tuple<TElements...>> final {
+            static constexpr bool IsValue = true;
+            static constexpr std::size_t Count = sizeof...(TElements);
         };
 
         /// Recursively qualifies a native fixed-extent C array.

@@ -23,7 +23,7 @@ The declared Type must exactly equal `std::underlying_type_t<MyEnum>` and be a s
 
 ## Bounded values and sequences
 
-Supported recursive forms are `Bounded::String<N>`, `Bounded::Bytes<N>`, `Bounded::Vector<T,N>`, `std::array<T,N>`, native `T[N]`, and `std::optional<T>`. Directly nested Optional is rejected because omission/null/value cannot preserve its three logical levels consistently across object fields and positional roots/sequences. Transactional decode must be able to create an engaged Optional value or activate a new bounded Vector slot, so Optional elements and Bounded Vector elements must also be nothrow default-constructible.
+Supported recursive forms are `Bounded::String<N>`, `Bounded::Bytes<N>`, `Bounded::Vector<T,N>`, `std::array<T,N>`, native `T[N]`, `std::optional<T>`, and fixed heterogeneous `std::tuple<T...>` when **every element** itself qualifies under the ordinary owner contract. Tuple elements keep their compile-time order and generate no local kind tags; [Tuple Schema Fields](./TUPLE-SCHEMA-FIELDS.MD) describes their canonical array wire and exact-arity transactional decode. Directly nested Optional is rejected because omission/null/value cannot preserve its three logical levels consistently across object fields and positional roots/sequences. Transactional decode must be able to create an engaged Optional value or activate a new bounded Vector slot, so Optional elements and Bounded Vector elements must also be nothrow default-constructible.
 
 ## Schema recursion
 
