@@ -76,12 +76,12 @@ No dependency points from these foundational repositories back to Serialisation.
 
 Only a consumer importing `<serialisation/ClockEraAdapters.hpp>` activates **EDP-Serialisation -> EDP-Clock [optional]**. The EDP-Clock owner depends on EDP-System and EDP-Platform, which are already foundations; it does not depend on EDP-Serialisation. **This is acyclic**. The default `ESPressio_Serialisation.hpp` remains Clock-free and mandatory `library.json` dependencies remain unchanged. Application Bootstrap must declare EDP-Clock explicitly when selecting this optional source header. The adapter never imports EDP-Mesh or any platform concrete.
 
+## 2026-10-22 JSON traversal high-water dependency audit
 
-## Enum concept qualification correction (2026-10-20)
-
-Guarding accesses to optional `EnumSerialisationTraits<T>` inside
-`IsCertifiedEnum<T>` affects only compile-time classification.
-No extra dependencies, runtime adapters, providers, or cycles
-have been introduced. Logging's optional schema audit consumes
-this contract but is not a new EDP-Serialisation dependency.
-
+The JSON schema high-water optimization uses the **existing mandatory**
+EDP-System `FieldsOf<T>::ForEach` compile-time schema/FieldSet
+metadata from the already declared owner graph. It introduces **no
+additional mandatory or optional library**, no Logging import,
+no concrete ESP-IDF dependency and no Memory allocation.
+The complete dependency tree in this document and the README
+`Dependencies` section therefore remain unchanged.

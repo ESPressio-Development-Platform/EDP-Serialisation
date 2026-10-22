@@ -540,6 +540,12 @@ namespace TestSupport {
 
     };
 
+    // Bound JSON schema writer's static traversal by real maximum FieldId.
+    static_assert(ESPressio::Serialisation::Detail::MaximumDeclaredJsonFieldIdentifier<Nested> == 9U);
+    static_assert(ESPressio::Serialisation::Detail::MaximumDeclaredJsonFieldIdentifier<Payload> == 7U);
+    static_assert(ESPressio::Serialisation::Detail::MaximumDeclaredJsonFieldIdentifier<BoundaryFields> == 255U);
+    static_assert(ESPressio::Serialisation::Detail::MaximumDeclaredJsonFieldIdentifier<SparseOptionalFields> == 255U);
+
 } // TestSupport
 
 namespace ESPressio::Serialisation {

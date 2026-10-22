@@ -361,3 +361,18 @@ Host validation includes functional compile-time/runtime assertions plus compile
 ### Optional G3 canonical ClockEra adapter
 
 Explicit import of `<serialisation/ClockEraAdapters.hpp>` provides the existing EDP-Clock `ClockEra` as a lossless canonical `uint64_t` CBOR/JSON value, with reverse conversion. **Condition:** this import imposes a direct optional EDP-Clock dependency in the *consuming application*; the default Serialisation umbrella and mandatory graph remain unchanged. Clock/Mesh own authority and coherent capture; this adapter never mints or validates provenance. See [adapter contract](docs/CLOCK-ERA-ADAPTERS.MD), [Wiki](wiki/Reference-ClockEraAdapters.md) and `tests/run-clock-era-adapters-tests.sh`.
+
+### Owner JSON schema high-water traversal (2026-10-22)
+
+The canonical JSON System-schema writer now limits compile-time field
+traversal to the highest **declared** FieldIdentifier; canonical wire
+order remains ascending and sparse/unordered/255-boundary schemas
+retain full coverage. Full GCC/Clang C++20 regression, including
+negative enum/compile-fail cases, passed on RPI400. Three real
+ESP32-WROOM full fifteen-field Typed Envelope runs at a fixed 14 KiB
+test stack passed: minimum remaining stack after JSON increased
+from 3,512 to 10,472 B; whole-test-firmware flash use dropped
+from 388,513 to 378,789 B, static RAM unchanged. No new allocation,
+mandatory dependency or version change.
+[Owner contract and measured evidence](docs/JSON-SCHEMA-TRAVERSAL-BOUNDS.MD)
+(related [issue #10](https://github.com/ESPressio-Development-Platform/EDP-Serialisation/issues/10)).

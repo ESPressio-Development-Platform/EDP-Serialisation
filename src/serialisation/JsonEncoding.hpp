@@ -897,6 +897,30 @@ namespace ESPressio::Serialisation::Detail {
         );
     }
 
+    /// Compile-time high-water FieldIdentifier bound for one System schema.
+    ///
+    /// Traverses owner-issued FieldSet bindings at compile-time rather than
+    /// instantiating empty recursive writer frames for unissued numeric IDs.
+    /// This does not change canonical ascending wire order or the valid
+    /// maximum identifier 255; sparse/out-of-order schemas are preserved.
+    ///
+    /// @tparam TValue System schema owner Type.
+    template<class TValue>
+    inline constexpr std::uint16_t MaximumDeclaredJsonFieldIdentifier = []() constexpr {
+        std::uint16_t maximum = 0U;
+        using Fields = System::FieldsOf<TValue>;
+        Fields::ForEach([&]<class TField>() constexpr {
+            const auto identifier = static_cast<std::uint16_t>(
+                TField::Identifier.Value()
+            );
+            if (identifier > maximum) {
+                maximum = identifier;
+            }
+        });
+        return maximum;
+    }();
+
+
     /// Emits schema Fields in ascending numeric FieldIdentifier order without runtime sorting state.
     ///
     /// @tparam TIdentifier Current numeric FieldIdentifier candidate in the compile-time traversal.
@@ -917,7 +941,7 @@ namespace ESPressio::Serialisation::Detail {
         bool& firstField,
         Diagnostic& diagnostic
     ) noexcept {
-        if constexpr (TIdentifier > 255U) {
+        if constexpr (TIdentifier > MaximumDeclaredJsonFieldIdentifier<TValue>) {
             static_cast<void>(sink);
             static_cast<void>(value);
             static_cast<void>(firstField);
