@@ -21,6 +21,12 @@
 
 namespace ESPressio::Serialisation::Detail {
 
+    // Preserve the existing internal qualified names without a second
+    // UTF-8 implementation, policy or error/result representation.
+    using ESPressio::Serialisation::Utf8ValidationStatus;
+    using ESPressio::Serialisation::Utf8ValidationResult;
+    using ESPressio::Serialisation::ValidateUtf8;
+
     /// Internal outcomes produced by the allocation-free JSON encoder traversal.
     enum class JsonEncodingStatus : std::uint8_t {
         /// The complete represented value was validated and emitted successfully.

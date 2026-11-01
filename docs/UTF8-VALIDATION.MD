@@ -14,6 +14,8 @@ Existing JSON/CBOR encoding and decoding still use the exact same underlying val
 
 ## Library expansion
 
+The existing internal Detail-qualified type/function names remain visible as using-declarations in JsonEncoding.hpp, forwarding to the same single implementation with no duplicated logic or changed result.
+
 The pre-existing validation algorithm formerly in `JsonEncoding.hpp` is now the single owner implementation in `Utf8Validation.hpp`. Its typed result and byte-offset semantics are unchanged, and making the function `constexpr` enables compile-time checking without a second validator. Do not widen its default text domain, change the returned error offsets, or introduce duplicate source-side validation; perform design review and cross-library negative/golden tests before any change of canonical text policy.
 
 Regressions must cover standalone header compilation, malformed and valid UTF-8, NUL at non-zero offsets, complete JSON/CBOR round trips and negative wire inputs, and generated consumers in Logging, Mesh, Command, Event and State. The new public reusable component must be discoverable in Policy V2's Component Reuse catalogue, with its feature-branch status explicitly distinguished from `main`.
