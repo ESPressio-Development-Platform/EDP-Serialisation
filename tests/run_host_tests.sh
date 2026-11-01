@@ -43,6 +43,11 @@ elif [[ -n "${SANITIZER_MODE}" ]]; then
     exit 2
 fi
 
+# Standalone UTF-8 public header with constexpr and strict byte-offset tests.
+"${CXX}" "${COMMON_FLAGS[@]}" "${EXTRA_FLAGS[@]}" "${ROOT_DIR}/tests/host/utf8_validation.cpp" -o "${BUILD_DIR}/utf8-validation-tests"
+"${BUILD_DIR}/utf8-validation-tests"
+echo "EDP-Serialisation strict UTF-8 standalone test PASS"
+
 "${CXX}" "${COMMON_FLAGS[@]}" "${EXTRA_FLAGS[@]}" "${ROOT_DIR}/tests/host/main.cpp" -o "${BUILD_DIR}/host-tests"
 ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=0:abort_on_error=1}" \
 UBSAN_OPTIONS="${UBSAN_OPTIONS:-halt_on_error=1:print_stacktrace=1}" \

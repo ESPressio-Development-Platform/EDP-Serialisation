@@ -26,6 +26,7 @@ The library is currently in its pre-1.0 implementation tranche at version `0.1.0
 - [CBOR Numeric Profiles](./docs/CBOR-NUMERIC.MD) — defines deterministic Numeric CBOR for Known-Type Body and Typed Envelope roots, canonical heads, exact float widths, native text/byte strings, and transactional decode.
 - [Heterogeneous positional CBOR and JSON](./docs/POSITIONAL-VALUE-ENCODING.MD) — compile-time typed ordered arguments, exact two-pass measurement and nonmutating failed preflight (partial Logging G3 prerequisite).
 - [Tuple Schema Fields](./docs/TUPLE-SCHEMA-FIELDS.MD) — fixed heterogeneous `std::tuple` as an owner-qualified nested EDP-System Field, canonical CBOR/JSON and strict transactional decode.
+- [Strict UTF-8 validation](./docs/UTF8-VALIDATION.MD) — dependency-light, constexpr, identical strict JSON/CBOR text domain and first-invalid-byte offsets.
 - [Dependency Graph](./DEPENDENCY_GRAPH.MD) — records direct ownership boundaries and current transitive dependency topology.
 
 ## Implemented API
