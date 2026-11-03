@@ -30,4 +30,3 @@ actual C++ enum underlying type. A mismatched declaration is also
 The implementation's `if constexpr` branches guard trait member
 access in their final `else` branch. This corrects compile-time
 classification only and does not change canonical bytes.
-
